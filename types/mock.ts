@@ -15,4 +15,5 @@ export type MockCampaign = {
   donationPercent: number;
   raisedAmount: number;
   goalAmount: number;
+  image: string;
 };
