@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,11 +23,31 @@ import {
   Users,
   Target,
   LogOut,
+  Shield,
 } from "lucide-react"
+import { useWeb3Auth } from "@/context/Web3AuthProvider"
 
 export default function DonorDashboard() {
+  const router = useRouter()
+  const { isConnected, userInfo, walletInfo, logout } = useWeb3Auth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+
+  useEffect(() => {
+    // Redirect to login if not connected
+    if (!isConnected) {
+      router.push("/login")
+    }
+  }, [isConnected, router])
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push("/")
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
+  }
 
   // Mock data for NGOs
   const ngos = [
@@ -100,6 +121,10 @@ export default function DonorDashboard() {
     return matchesSearch && matchesCategory
   })
 
+  if (!isConnected) {
+    return null // Will redirect to login
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -115,14 +140,26 @@ export default function DonorDashboard() {
             <Badge variant="secondary">Donor Dashboard</Badge>
           </div>
           <div className="flex items-center space-x-4">
+            {/* User Info */}
             <div className="text-sm text-gray-600">
-              <span>Welcome, John Doe</span>
+              <span>Welcome, {userInfo?.name || "User"}</span>
             </div>
+
+            {/* Wallet Info */}
+            {walletInfo && (
+              <div className="text-xs text-gray-500">
+                <div>{Number(walletInfo.balance).toFixed(4)} ETH</div>
+              </div>
+            )}
+
+            {/* Profile Avatar */}
             <Avatar>
-              <AvatarImage src="/placeholder.svg?height=32&width=32" />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarImage src={userInfo?.profileImage || "/placeholder.svg?height=32&width=32"} />
+              <AvatarFallback>{userInfo?.name?.substring(0, 2) || "U"}</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="sm">
+
+            {/* Logout Button */}
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -132,8 +169,20 @@ export default function DonorDashboard() {
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Message */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, John! 👋</h1>
-          <p className="text-gray-600">Your account is ready. Start making transparent donations today.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {userInfo?.name || "User"}! 👋</h1>
+          <p className="text-gray-600">Your Web3Auth account is connected. Start making transparent donations today.</p>
+
+          {/* Connection Info */}
+          <div className="flex items-center space-x-4 mt-2">
+            <Badge variant="outline" className="text-xs">
+              {userInfo?.typeOfLogin || "Web3Auth"}
+            </Badge>
+            {walletInfo && (
+              <Badge variant="outline" className="text-xs font-mono">
+                {walletInfo.address.substring(0, 6)}...{walletInfo.address.substring(38)}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Stats Overview */}
@@ -170,12 +219,14 @@ export default function DonorDashboard() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Donations</CardTitle>
+              <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5</div>
-              <p className="text-xs text-muted-foreground">Being tracked</p>
+              <div className="text-2xl font-bold">
+                {walletInfo ? `${Number(walletInfo.balance).toFixed(4)}` : "0.0000"}
+              </div>
+              <p className="text-xs text-muted-foreground">ETH</p>
             </CardContent>
           </Card>
         </div>
@@ -290,6 +341,44 @@ export default function DonorDashboard() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Web3Auth Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="w-5 h-5 mr-2" />
+                  Web3Auth Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Avatar>
+                      <AvatarImage src={userInfo?.profileImage || "/placeholder.svg"} />
+                      <AvatarFallback>{userInfo?.name?.substring(0, 2) || "U"}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">{userInfo?.name || "Web3 User"}</div>
+                      <div className="text-sm text-gray-500">{userInfo?.email}</div>
+                    </div>
+                  </div>
+                  {walletInfo && (
+                    <div className="border-t pt-3">
+                      <div className="text-sm text-gray-600 mb-1">Wallet Address</div>
+                      <div className="font-mono text-xs bg-gray-50 p-2 rounded break-all">{walletInfo.address}</div>
+                      <div className="flex items-center justify-between text-sm mt-2">
+                        <span>Balance:</span>
+                        <span className="font-medium">{Number(walletInfo.balance).toFixed(4)} ETH</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Login Method:</span>
+                    <Badge variant="outline">{userInfo?.typeOfLogin || "Web3Auth"}</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Recent Donations */}
             <Card>
               <CardHeader>
@@ -341,12 +430,10 @@ export default function DonorDashboard() {
                     Track Donations
                   </Button>
                 </Link>
-                <Link href="/donor/settings">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Users className="w-4 h-4 mr-2" />
-                    Account Settings
-                  </Button>
-                </Link>
+                <Button variant="outline" className="w-full justify-start bg-transparent" onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
               </CardContent>
             </Card>
           </div>

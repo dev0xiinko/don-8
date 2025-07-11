@@ -4,6 +4,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Shield, Zap, Eye, Users, TrendingUp, Globe, ArrowRight } from "lucide-react"
+import App from "@/components/web3auth/App"
 
 export default function HomePage() {
   const features = [
