@@ -8,7 +8,7 @@ export function HeroSection({ stats }: { stats: { value: string; label: string }
     <section className="py-24 px-4">
       <div className="container mx-auto text-center max-w-4xl">
         <Badge variant="secondary" className="mb-6">
-          Powered by Blockchain Technology
+          Capstone Project
         </Badge>
         <h1 className="text-4xl md:text-6xl font-bold mb-6">
           Transparent Donations,
