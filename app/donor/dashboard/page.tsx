@@ -44,6 +44,7 @@ import { useWallet } from "@/contexts/WalletProvider";
 import { useNGOs } from "@/hooks/useNGOs";
 import { useDonations } from "@/hooks/useDonations";
 import { DonationModal } from "@/components/features/donate/donation-modal";
+import Image from "next/image";
 
 export default function DonorDashboard() {
   const router = useRouter();
@@ -218,11 +219,16 @@ export default function DonorDashboard() {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="overflow-hidden">
+            <Image
+              src="/a02tw0.jpg"
+              alt="Group of families and children sitting together, representing the beneficiaries of charitable donations"
+              width={600}
+              height={600}
+              className="w-full object-cover -mt-6"
+              priority
+            />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                NGOs Supported
-              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
