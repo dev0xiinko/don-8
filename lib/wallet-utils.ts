@@ -1,25 +1,11 @@
 import { ethers } from "ethers"
-import { getWeb3Auth } from "./web3auth-config"
+import type { WalletInfo } from "@/types/wallet"
 
-export interface WalletInfo {
-  address: string
-  balance: string
-  chainId: string
-  provider: any
-  connectionType: "web3auth" | "injected"
-}
-
-// Check if MetaMask is installed
+// MetaMask utilities
 export const isMetaMaskInstalled = (): boolean => {
-  return typeof window !== "undefined" && typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask
+  return typeof window !== "undefined" && typeof window.ethereum !== "undefined" && !!window.ethereum.isMetaMask
 }
 
-// Check if any wallet is installed
-export const isWalletInstalled = (): boolean => {
-  return typeof window !== "undefined" && typeof window.ethereum !== "undefined"
-}
-
-// Connect to MetaMask directly
 export const connectMetaMask = async (): Promise<WalletInfo> => {
   if (!isMetaMaskInstalled()) {
     throw new Error("MetaMask is not installed. Please install MetaMask to continue.")
@@ -27,7 +13,7 @@ export const connectMetaMask = async (): Promise<WalletInfo> => {
 
   try {
     // Request account access
-    const accounts = await window.ethereum.request({
+    const accounts = await window.ethereum!.request({
       method: "eth_requestAccounts",
     })
 
@@ -35,38 +21,8 @@ export const connectMetaMask = async (): Promise<WalletInfo> => {
       throw new Error("No accounts found. Please unlock MetaMask.")
     }
 
-    // Switch to SonicLabs Network
-    try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x39" }], // SonicLabs chainId
-      })
-    } catch (switchError: any) {
-      // If network doesn't exist, add it
-      if (switchError.code === 4902) {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x39",
-              chainName: "SonicLabs Network",
-              nativeCurrency: {
-                name: "Sonic",
-                symbol: "S",
-                decimals: 18,
-              },
-              rpcUrls: ["https://rpc.soniclabs.com"],
-              blockExplorerUrls: ["https://explorer.soniclabs.com"],
-            },
-          ],
-        })
-      } else {
-        throw switchError
-      }
-    }
-
     // Create provider and get wallet info
-    const provider = new ethers.BrowserProvider(window.ethereum)
+    const provider = new ethers.BrowserProvider(window.ethereum!)
     const signer = await provider.getSigner()
     const address = await signer.getAddress()
     const balance = await provider.getBalance(address)
@@ -76,8 +32,8 @@ export const connectMetaMask = async (): Promise<WalletInfo> => {
       address,
       balance: ethers.formatEther(balance),
       chainId: network.chainId.toString(),
-      provider,
-      connectionType: "injected",
+      network: network.name,
+      walletType: "metamask",
     }
   } catch (error: any) {
     console.error("MetaMask connection error:", error)
@@ -85,146 +41,158 @@ export const connectMetaMask = async (): Promise<WalletInfo> => {
   }
 }
 
-// Connect via Web3Auth
-export const connectWeb3Auth = async (loginProvider?: string): Promise<WalletInfo> => {
-  const web3auth = getWeb3Auth()
-  if (!web3auth) {
-    throw new Error("Web3Auth not initialized")
+export const switchToEthereumMainnet = async (): Promise<void> => {
+  if (!isMetaMaskInstalled()) {
+    throw new Error("MetaMask is not installed")
   }
 
   try {
-    let provider: any
+    await window.ethereum!.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0x1" }], // Ethereum Mainnet
+    })
+  } catch (error: any) {
+    console.error("Network switch error:", error)
+    throw new Error("Failed to switch to Ethereum Mainnet")
+  }
+}
 
-    if (loginProvider) {
-      // Connect with specific social provider
-      provider = await web3auth.connectTo("openlogin", {
-        loginProvider,
-      })
-    } else {
-      // Connect with Web3Auth modal
-      provider = await web3auth.connect()
-    }
+// Phantom utilities
+export const isPhantomInstalled = (): boolean => {
+  return typeof window !== "undefined" && typeof window.solana !== "undefined" && !!window.solana.isPhantom
+}
 
-    if (!provider) {
-      throw new Error("Failed to connect with Web3Auth")
-    }
+export const connectPhantom = async (): Promise<WalletInfo> => {
+  if (!isPhantomInstalled()) {
+    throw new Error("Phantom wallet is not installed. Please install Phantom to continue.")
+  }
 
-    // Create ethers provider
-    const ethersProvider = new ethers.BrowserProvider(provider)
-    const signer = await ethersProvider.getSigner()
-    const address = await signer.getAddress()
-    const balance = await ethersProvider.getBalance(address)
-    const network = await ethersProvider.getNetwork()
+  try {
+    const response = await window.solana!.connect()
+    const address = response.publicKey.toString()
+
+    // For Phantom, we'll simulate balance (in a real app, you'd fetch from Solana RPC)
+    const balance = "0.0000" // Placeholder - would need Solana connection to get real balance
 
     return {
       address,
-      balance: ethers.formatEther(balance),
-      chainId: network.chainId.toString(),
-      provider: ethersProvider,
-      connectionType: "web3auth",
+      balance,
+      chainId: "solana-mainnet",
+      network: "Solana Mainnet",
+      walletType: "phantom",
     }
   } catch (error: any) {
-    console.error("Web3Auth connection error:", error)
-    throw new Error(error.message || "Failed to connect with Web3Auth")
+    console.error("Phantom connection error:", error)
+    throw new Error(error.message || "Failed to connect to Phantom")
   }
 }
 
-// Get user info from Web3Auth
-export const getWeb3AuthUserInfo = async () => {
-  const web3auth = getWeb3Auth()
-  if (!web3auth || !web3auth.connected) {
-    return null
-  }
-
+// General utilities
+export const disconnectWallet = async (walletType: "metamask" | "phantom"): Promise<void> => {
   try {
-    return await web3auth.getUserInfo()
-  } catch (error) {
-    console.error("Error getting user info:", error)
-    return null
-  }
-}
+    if (walletType === "phantom" && window.solana) {
+      await window.solana.disconnect()
+    }
+    // MetaMask doesn't have a disconnect method - user needs to disconnect manually
 
-// Disconnect wallet
-export const disconnectWallet = async () => {
-  const web3auth = getWeb3Auth()
-  if (web3auth && web3auth.connected) {
-    await web3auth.logout()
-  }
-
-  // Clear any stored connection data
-  if (typeof window !== "undefined") {
+    // Clear stored connection data
     localStorage.removeItem("wallet-connection")
+  } catch (error) {
+    console.error("Disconnect error:", error)
   }
 }
 
-// Check if connected
-export const isConnected = (): boolean => {
-  const web3auth = getWeb3Auth()
-  return (web3auth && web3auth.connected) || isWalletInstalled()
+export const getStoredWalletConnection = (): { walletType: "metamask" | "phantom"; address: string } | null => {
+  if (typeof window === "undefined") return null
+
+  try {
+    const stored = localStorage.getItem("wallet-connection")
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
 }
 
-// Get current connection info
+export const storeWalletConnection = (walletType: "metamask" | "phantom", address: string): void => {
+  if (typeof window === "undefined") return
+
+  localStorage.setItem("wallet-connection", JSON.stringify({ walletType, address }))
+}
+
+export const clearWalletConnection = (): void => {
+  if (typeof window === "undefined") return
+
+  localStorage.removeItem("wallet-connection")
+}
+
+// Get current wallet info
 export const getCurrentWalletInfo = async (): Promise<WalletInfo | null> => {
+  const stored = getStoredWalletConnection()
+  if (!stored) return null
+
   try {
-    const web3auth = getWeb3Auth()
-
-    // Check Web3Auth connection first
-    if (web3auth && web3auth.connected) {
-      const provider = web3auth.provider
-      if (provider) {
-        const ethersProvider = new ethers.BrowserProvider(provider)
-        const signer = await ethersProvider.getSigner()
-        const address = await signer.getAddress()
-        const balance = await ethersProvider.getBalance(address)
-        const network = await ethersProvider.getNetwork()
-
-        return {
-          address,
-          balance: ethers.formatEther(balance),
-          chainId: network.chainId.toString(),
-          provider: ethersProvider,
-          connectionType: "web3auth",
-        }
+    if (stored.walletType === "metamask" && isMetaMaskInstalled()) {
+      if (window.ethereum!.selectedAddress) {
+        return await connectMetaMask()
+      }
+    } else if (stored.walletType === "phantom" && isPhantomInstalled()) {
+      if (window.solana!.isConnected) {
+        return await connectPhantom()
       }
     }
-
-    // Check injected wallet connection
-    if (isWalletInstalled() && window.ethereum.selectedAddress) {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const signer = await provider.getSigner()
-      const address = await signer.getAddress()
-      const balance = await provider.getBalance(address)
-      const network = await provider.getNetwork()
-
-      return {
-        address,
-        balance: ethers.formatEther(balance),
-        chainId: network.chainId.toString(),
-        provider,
-        connectionType: "injected",
-      }
-    }
-
-    return null
   } catch (error) {
     console.error("Error getting current wallet info:", error)
-    return null
+    clearWalletConnection()
   }
+
+  return null
 }
 
-// Listen for account changes
+// Setup wallet event listeners
 export const setupWalletListeners = (
   onAccountChange: (accounts: string[]) => void,
   onChainChange: (chainId: string) => void,
+  onDisconnect: () => void,
 ) => {
-  if (typeof window !== "undefined" && window.ethereum) {
-    window.ethereum.on("accountsChanged", onAccountChange)
-    window.ethereum.on("chainChanged", onChainChange)
+  const cleanup: (() => void)[] = []
 
-    return () => {
-      window.ethereum.removeListener("accountsChanged", onAccountChange)
-      window.ethereum.removeListener("chainChanged", onChainChange)
+  // MetaMask listeners
+  if (isMetaMaskInstalled()) {
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (accounts.length === 0) {
+        onDisconnect()
+      } else {
+        onAccountChange(accounts)
+      }
     }
+
+    const handleChainChanged = (chainId: string) => {
+      onChainChange(chainId)
+    }
+
+    window.ethereum!.on("accountsChanged", handleAccountsChanged)
+    window.ethereum!.on("chainChanged", handleChainChanged)
+
+    cleanup.push(() => {
+      window.ethereum!.removeListener("accountsChanged", handleAccountsChanged)
+      window.ethereum!.removeListener("chainChanged", handleChainChanged)
+    })
   }
-  return () => {}
+
+  // Phantom listeners
+  if (isPhantomInstalled()) {
+    const handleDisconnect = () => {
+      onDisconnect()
+    }
+
+    window.solana!.on("disconnect", handleDisconnect)
+
+    cleanup.push(() => {
+      window.solana!.removeListener("disconnect", handleDisconnect)
+    })
+  }
+
+  return () => {
+    cleanup.forEach((fn) => fn())
+  }
 }

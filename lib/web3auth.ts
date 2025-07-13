@@ -1,8 +1,8 @@
-import { Web3Auth } from "@web3auth/modal";
-import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+import { Web3Auth } from "@web3auth/modal"
+import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base"
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider"
 
-const clientId = "BBgJUg3TvBJ4hSMILiqLPqgByN9LzkcsFnYNynzOnp2h0D9KlgrIqPYNG8SDI2s0zhr4LzuH7v6qq1VnjVJgjJE";
+const clientId = "BBgJUg3TvBJ4hSMILiqLPqgByN9LzkcsFnYNynzOnp2h0D9KlgrIqPYNG8SDI2s0zhr4LzuH7v6qq1VnjVJgjJE"
 
 const chainConfig = {
   chainNamespace: CHAIN_NAMESPACES.EIP155,
@@ -13,13 +13,13 @@ const chainConfig = {
   ticker: "ETH",
   tickerName: "Ethereum",
   logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-};
+}
 
 const privateKeyProvider = new EthereumPrivateKeyProvider({
   config: { chainConfig },
-});
+})
 
-export const web3authmodal = new Web3Auth({
+export const web3auth = new Web3Auth({
   clientId,
   web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET, // Use SAPPHIRE_MAINNET for production
   privateKeyProvider,
@@ -29,65 +29,68 @@ export const web3authmodal = new Web3Auth({
     logoLight: "https://don8.app/logo-light.png",
     logoDark: "https://don8.app/logo-dark.png",
     defaultLanguage: "en",
-    mode: "auto",
+    mode: "auto", // whether to enable dark mode. defaultValue: auto
     theme: {
       primary: "#10b981", // emerald-600
     },
   },
-});
+})
 
-export const initweb3authmodal = async () => {
+export const initWeb3Auth = async () => {
   try {
-    await web3authmodal.initModal();
-    return web3authmodal;
+    await web3auth.initModal()
+    return web3auth
   } catch (error) {
-    console.error("Error initializing web3authmodal:", error);
-    throw error;
+    console.error("Error initializing Web3Auth:", error)
+    throw error
   }
-};
+}
 
-export const connectweb3authmodal = async () => {
+export const connectWeb3Auth = async () => {
   try {
-    if (!web3authmodal) {
-      throw new Error("web3authmodal not initialized");
+    if (!web3auth) {
+      throw new Error("Web3Auth not initialized")
     }
 
-    const provider = await web3authmodal.connect();
-    return provider;
+    const provider = await web3auth.connect()
+    return provider
   } catch (error) {
-    console.error("Error connecting to web3authmodal:", error);
-    throw error;
+    console.error("Error connecting to Web3Auth:", error)
+    throw error
   }
-};
+}
 
 export const getUserInfo = async () => {
   try {
-    if (!web3authmodal || !web3authmodal.connected) {
-      return null;
+    if (!web3auth || !web3auth.connected) {
+      return null
     }
 
-    const userInfo = await web3authmodal.getUserInfo();
-    return userInfo;
+    const userInfo = await web3auth.getUserInfo()
+    return userInfo
   } catch (error) {
-    console.error("Error getting user info:", error);
-    return null;
+    console.error("Error getting user info:", error)
+    return null
   }
-};
+}
 
 export const logout = async () => {
   try {
-    if (!web3authmodal) return;
-    await web3authmodal.logout();
+    if (!web3auth) {
+      return
+    }
+
+    await web3auth.logout()
   } catch (error) {
-    console.error("Error logging out:", error);
-    throw error;
+    console.error("Error logging out:", error)
+    throw error
   }
-};
+}
 
 export const getProvider = () => {
-  return web3authmodal?.provider || null;
-};
+  return web3auth?.provider || null
+}
 
 export const isConnected = () => {
-  return web3authmodal?.connected || false;
-};
+  return web3auth?.connected || false
+}
