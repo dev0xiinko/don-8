@@ -30,16 +30,6 @@ export function WorldMapFeature() {
       <WorldMap
         dots={[
           {
-            start: {
-              lat: 10.3251968,
-              lng: 123.9154688,
-            }, // Alaska (Fairbanks)
-            end: {
-              lat: 34.0522,
-              lng: -118.2437,
-            }, // Los Angeles
-          },
-          {
             start: { lat: 64.2008, lng: -149.4937 }, // Alaska (Fairbanks)
             end: { lat: -15.7975, lng: -47.8919 }, // Brazil (Brasília)
           },
