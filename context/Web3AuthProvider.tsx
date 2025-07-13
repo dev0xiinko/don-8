@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { Web3Auth } from "@web3auth/modal"
 import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK, type IProvider } from "@web3auth/base"
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider"
 import Web3 from "web3"
 
 interface UserInfo {
@@ -36,17 +35,7 @@ interface Web3AuthContextType {
 
 const Web3AuthContext = createContext<Web3AuthContextType | null>(null)
 
-const clientId = process.env.WEB3AUTH_CLIENT_ID || ""
-
-const chainConfig = {
-  chainNamespace: CHAIN_NAMESPACES.EIP155,
-  chainId: process.env.CHAIN_ID || "", 
-  rpcTarget: process.env.RPC_URL || "", 
-  displayName: process.env.DISPLAY_NAME || "",
-  blockExplorerUrl: process.env.BLOCK_EXPLORER_URL || "",
-  ticker: process.env.TICKER || "",
-  tickerName: process.env.TICKER_NAME || "",
-}
+const clientId = process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID || ""
 
 export function Web3AuthProvider({ children }: { children: ReactNode }) {
   const [web3auth, setWeb3auth] = useState<Web3Auth | null>(null)
@@ -59,16 +48,18 @@ export function Web3AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const init = async () => {
       try {
-        // Initialize the private key provider
-        const privateKeyProvider = new EthereumPrivateKeyProvider({
-          config: { chainConfig },
-        })
-
-        // Initialize Web3Auth
         const web3authInstance = new Web3Auth({
           clientId,
           web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
-          privateKeyProvider,
+          chainConfig: {
+            chainNamespace: CHAIN_NAMESPACES.EIP155,
+            chainId: "0x13881", // Mumbai testnet
+            rpcTarget: "https://rpc-mumbai.maticvigil.com",
+            displayName: "Polygon Mumbai",
+            blockExplorerUrl: "https://mumbai.polygonscan.com",
+            ticker: "MATIC",
+            tickerName: "Polygon",
+          },
           uiConfig: {
             appName: "DON-8",
             appUrl: "https://don8.app",
@@ -82,31 +73,21 @@ export function Web3AuthProvider({ children }: { children: ReactNode }) {
           },
         })
 
-        // Initialize the modal
         await web3authInstance.initModal()
         setWeb3auth(web3authInstance)
 
-        // Check if already connected
-        if (web3authInstance.connected) {
+        if (web3authInstance.connected && web3authInstance.provider) {
           setProvider(web3authInstance.provider)
           setIsConnected(true)
 
-          // Get user info
-          try {
-            const user = await web3authInstance.getUserInfo()
-            setUserInfo(user)
-          } catch (error) {
-            console.log("No user info available")
-          }
+          const user = await web3authInstance.getUserInfo()
+          setUserInfo(user)
 
-          // Get wallet info
-          if (web3authInstance.provider) {
-            const wallet = await getWalletInfoFromProvider(web3authInstance.provider)
-            setWalletInfo(wallet)
-          }
+          const wallet = await getWalletInfoFromProvider(web3authInstance.provider)
+          setWalletInfo(wallet)
         }
-      } catch (error) {
-        console.error("Error initializing Web3Auth:", error)
+      } catch (err) {
+        console.error("Web3Auth init error:", err)
       } finally {
         setIsLoading(false)
       }
@@ -119,113 +100,62 @@ export function Web3AuthProvider({ children }: { children: ReactNode }) {
     try {
       const web3 = new Web3(provider as any)
       const accounts = await web3.eth.getAccounts()
-      
-      if (accounts.length === 0) {
-        return null
-      }
-
+      if (!accounts || accounts.length === 0) return null
       const balance = await web3.eth.getBalance(accounts[0])
       const chainId = await web3.eth.getChainId()
-
       return {
         address: accounts[0],
         balance: web3.utils.fromWei(balance, "ether"),
         chainId: chainId.toString(),
       }
-    } catch (error) {
-      console.error("Error getting wallet info:", error)
+    } catch (err) {
+      console.error("Wallet info error:", err)
       return null
     }
   }
 
   const login = async () => {
-    if (!web3auth) {
-      throw new Error("Web3Auth not initialized")
-    }
+    if (!web3auth) throw new Error("Web3Auth not initialized")
+    const web3authProvider = await web3auth.connect()
+    if (!web3authProvider) throw new Error("Failed to connect")
 
-    try {
-      const web3authProvider = await web3auth.connect()
-      
-      if (!web3authProvider) {
-        throw new Error("Failed to connect")
-      }
+    setProvider(web3authProvider)
+    setIsConnected(true)
 
-      setProvider(web3authProvider)
-      setIsConnected(true)
+    const user = await web3auth.getUserInfo()
+    setUserInfo(user)
 
-      // Get user info
-      try {
-        const user = await web3auth.getUserInfo()
-        setUserInfo(user)
-      } catch (error) {
-        console.log("No user info available")
-      }
+    const wallet = await getWalletInfoFromProvider(web3authProvider)
+    setWalletInfo(wallet)
 
-      // Get wallet info
-      const wallet = await getWalletInfoFromProvider(web3authProvider)
-      setWalletInfo(wallet)
-
-      // Store session
-      localStorage.setItem(
-        "don8_session",
-        JSON.stringify({
-          user: userInfo,
-          wallet,
-          timestamp: Date.now(),
-        }),
-      )
-    } catch (error) {
-      console.error("Login error:", error)
-      throw error
-    }
+    localStorage.setItem(
+      "don8_session",
+      JSON.stringify({ user, wallet, timestamp: Date.now() }),
+    )
   }
 
   const logout = async () => {
-    if (!web3auth) {
-      return
-    }
-
-    try {
-      await web3auth.logout()
-      setProvider(null)
-      setIsConnected(false)
-      setUserInfo(null)
-      setWalletInfo(null)
-      localStorage.removeItem("don8_session")
-    } catch (error) {
-      console.error("Logout error:", error)
-      throw error
-    }
+    if (!web3auth) return
+    await web3auth.logout()
+    setProvider(null)
+    setIsConnected(false)
+    setUserInfo(null)
+    setWalletInfo(null)
+    localStorage.removeItem("don8_session")
   }
 
-  const getUserInfo = async (): Promise<UserInfo | null> => {
-    if (!web3auth || !web3auth.connected) {
-      return null
-    }
-
-    try {
-      const user = await web3auth.getUserInfo()
-      setUserInfo(user)
-      return user
-    } catch (error) {
-      console.error("Error getting user info:", error)
-      return null
-    }
+  const getUserInfo = async () => {
+    if (!web3auth?.connected) return null
+    const user = await web3auth.getUserInfo()
+    setUserInfo(user)
+    return user
   }
 
-  const getWalletInfo = async (): Promise<WalletInfo | null> => {
-    if (!provider) {
-      return null
-    }
-
-    try {
-      const wallet = await getWalletInfoFromProvider(provider)
-      setWalletInfo(wallet)
-      return wallet
-    } catch (error) {
-      console.error("Error getting wallet info:", error)
-      return null
-    }
+  const getWalletInfo = async () => {
+    if (!provider) return null
+    const wallet = await getWalletInfoFromProvider(provider)
+    setWalletInfo(wallet)
+    return wallet
   }
 
   const value: Web3AuthContextType = {
@@ -246,8 +176,6 @@ export function Web3AuthProvider({ children }: { children: ReactNode }) {
 
 export const useWeb3Auth = () => {
   const context = useContext(Web3AuthContext)
-  if (!context) {
-    throw new Error("useWeb3Auth must be used within a Web3AuthProvider")
-  }
+  if (!context) throw new Error("useWeb3Auth must be used within a Web3AuthProvider")
   return context
 }

@@ -4,6 +4,8 @@ import { FeaturesSection } from "@/components/homepage/sections/FeatureSection"
 import { StepsSection } from "@/components/homepage/sections/StepsSection"
 import { CTASection } from "@/components/homepage/sections/CTASection"
 import { Footer } from "@/components/homepage/layout/Footer"
+import {MissionVission} from "@/components/homepage/sections/MissionVission"
+import { WorldMapFeature } from "@/components/homepage/sections/WorldMap"
 
 import { features } from "@/types/data/features"
 import { stats } from "@/types/data/stats"
@@ -15,6 +17,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <Header />
       <HeroSection stats={stats} />
+      <WorldMapFeature />
+      <MissionVission />
       <FeaturesSection features={features} />
       <StepsSection steps={steps} />
       <CTASection />
