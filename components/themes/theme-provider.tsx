@@ -3,7 +3,6 @@
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import type { ReactNode } from "react"
 
-// Define the props manually for safety and future-proofing
 interface ThemeProviderProps {
   children: ReactNode
   attribute?: "class" | "data-theme"

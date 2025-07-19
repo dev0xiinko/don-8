@@ -1,9 +1,9 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from 'next/font/google'
+import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Web3AuthProvider } from "@/context/Web3AuthProvider"
+import { WalletProvider } from "@/contexts/WalletProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,9 +21,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Web3AuthProvider>
-            {children}
-          </Web3AuthProvider>
+          <WalletProvider>{children}</WalletProvider>
         </ThemeProvider>
       </body>
     </html>
