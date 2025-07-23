@@ -56,7 +56,7 @@ export function MissionVission() {
           <div className="relative">
             <div className="relative rounded-lg overflow-hidden shadow-lg border border-border">
               <Image
-                src="/a02tw0.jpg"
+                src="/image.jpeg"
                 alt="Group of families and children sitting together, representing the beneficiaries of charitable donations"
                 width={600}
                 height={600}
