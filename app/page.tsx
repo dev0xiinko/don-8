@@ -9,6 +9,7 @@ import { MissionVission } from "@/components/homepage/sections/MissionVission"
 import { features } from "@/types/data/features"
 import { stats } from "@/types/data/stats"
 import { steps } from "@/types/data/steps"
+import { CampaignsSection } from "@/components/homepage/sections/CampaignSection"
 
 
 {/*const WorldMap = dynamic(() => import('@/components/homepage/sections/WorldMap').then(mod => mod.WorldMapFeature), {
@@ -22,6 +23,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <Header />
       <HeroSection stats={stats} />
+      <CampaignsSection />
       <MissionVission />
       <FeaturesSection features={features} />
       <StepsSection steps={steps} />
