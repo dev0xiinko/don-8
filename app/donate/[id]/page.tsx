@@ -73,7 +73,6 @@ export default function DonatePage() {
       setStep(step + 1)
     } else {
       // Process donation
-      console.log("Processing donation:", donationData)
       // Redirect to success page
       window.location.href = "/donation/success"
     }

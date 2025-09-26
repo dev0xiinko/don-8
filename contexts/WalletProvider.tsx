@@ -106,6 +106,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       // Store connection for persistence
       storeWalletConnection(wallet.walletType, wallet.address)
+      
+      // Set cookie for middleware protection
+      document.cookie = `wallet_connected=true; path=/; max-age=${60 * 60 * 24 * 7}` // 7 days
     } catch (error) {
       console.error("Wallet connection error:", error)
       throw error
@@ -132,6 +135,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setUserInfo(null)
     setIsConnected(false)
     clearWalletConnection()
+    
+    // Clear cookie
+    document.cookie = "wallet_connected=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
   }
 
   const refreshWalletInfo = async () => {

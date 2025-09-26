@@ -20,10 +20,13 @@ export function HeroSection({ stats }: { stats: { value: string; label: string }
           technology. Support NGOs with complete transparency and zero hidden fees.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <Link href="/register?type=donor">
-            <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
+          <Link href="/donor/dashboard">
+            <Button 
+              size="lg" 
+              className="bg-emerald-600 hover:bg-emerald-700 group"
+            >
               Start Donating
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
           <Link href="/register?type=ngo">

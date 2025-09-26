@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Clock, MapPin, Users, Target, ArrowRight } from 'lucide-react'
+import useAuthRedirect from "@/hooks/useAuthRedirect"
 
 interface Campaign {
   id: string
@@ -119,6 +120,7 @@ const mockCampaigns: Campaign[] = [
 
 export function CampaignsSection() {
   const [filter, setFilter] = useState<'all' | 'urgent' | 'featured'>('all')
+  const { redirectToDonate, redirectToCampaigns } = useAuthRedirect()
   
   const filteredCampaigns = mockCampaigns.filter(campaign => {
     if (filter === 'urgent') return campaign.urgent
@@ -267,12 +269,13 @@ export function CampaignsSection() {
                 </div>
 
                 {/* Action Button */}
-                <Link href={`/donate/${campaign.id}`} className="block">
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 group">
-                    Donate Now
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
+                <Button 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 group"
+                  onClick={() => redirectToDonate(campaign.id)}
+                >
+                  Donate Now
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -280,12 +283,15 @@ export function CampaignsSection() {
 
         {/* View All Button */}
         <div className="text-center">
-          <Link href="/campaigns">
-            <Button size="lg" variant="outline" className="group">
-              View All Campaigns
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
+          <Button 
+            size="lg" 
+            variant="outline" 
+            className="group"
+            onClick={redirectToCampaigns}
+          >
+            View All Campaigns
+            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+          </Button>
         </div>
       </div>
     </section>

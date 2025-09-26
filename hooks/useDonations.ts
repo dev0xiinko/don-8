@@ -96,8 +96,7 @@ export function useDonations() {
     )
     setDonations(updatedDonations)
     calculateStats(updatedDonations)
-
-    // Save to localStorage
+    
     try {
       localStorage.setItem(`donations_${userInfo?.address}`, JSON.stringify(updatedDonations))
     } catch (error) {
