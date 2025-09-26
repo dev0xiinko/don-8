@@ -23,7 +23,6 @@ export default function HomePage() {
       <Header />
       <HeroSection stats={stats} />
       <CampaignsSection />
-      <MissionVission />
       <FeaturesSection features={features} />
       <StepsSection steps={steps} />
       <CTASection />
