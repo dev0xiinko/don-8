@@ -1,25 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Wallet, AlertCircle, CheckCircle, Loader2, Download } from "lucide-react"
+import { ArrowLeft, Wallet, AlertCircle, CheckCircle, Loader2, Download, Users, Building } from "lucide-react"
 import { useWallet } from "@/contexts/WalletProvider"
 import { isMetaMaskInstalled, isPhantomInstalled } from "@/lib/wallet-utils"
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/donor/dashboard'
   const { isLoading, isConnected, walletInfo, userInfo, connectWallet } = useWallet()
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState("")
+  const [selectedRole, setSelectedRole] = useState<"donor" | "ngo" | null>(null)
   const [walletStatus, setWalletStatus] = useState({
     metamaskInstalled: false,
     phantomInstalled: false,
   })
+  const [loginData, setLoginData] = useState({
+    email: "",
+    password: ""
+  })
+  const [showEmailLogin, setShowEmailLogin] = useState(false)
 
   useEffect(() => {
     setWalletStatus({
@@ -29,25 +38,94 @@ export default function LoginPage() {
   }, [])
 
   useEffect(() => {
-    // If already connected, redirect to dashboard
+    // If already connected, redirect to intended destination
     if (isConnected && userInfo) {
-      setTimeout(() => {
-        router.push("/donor/dashboard")
-      }, 2000)
+      router.push(redirectTo)
     }
-  }, [isConnected, userInfo, router])
+  }, [isConnected, userInfo, router, redirectTo])
 
   const handleWalletConnect = async (walletType: "metamask" | "phantom") => {
+    if (!selectedRole) {
+      setError("Please select your role first")
+      return
+    }
+
+    setConnecting(true)
+    setError("")
+
     try {
-      setConnecting(true)
-      setError("")
       await connectWallet(walletType)
-    } catch (error: any) {
-      console.error("Wallet connection error:", error)
-      setError(error.message || "Failed to connect wallet. Please try again.")
+      
+      // Store user info in localStorage with role
+      const userInfo = {
+        role: selectedRole,
+        loginType: "wallet",
+        walletType: walletType
+      }
+      localStorage.setItem("userInfo", JSON.stringify(userInfo))
+      
+      // Redirect based on role
+      if (selectedRole === "donor") {
+        router.push("/donor/dashboard")
+      } else {
+        router.push("/ngo/dashboard")
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to connect wallet")
+      console.error("Wallet connection error:", err)
     } finally {
       setConnecting(false)
     }
+  }
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedRole) {
+      setError("Please select your role first")
+      return
+    }
+
+    if (!loginData.email || !loginData.password) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    setConnecting(true)
+    setError("")
+
+    try {
+      // Simulate login process
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Store user info in localStorage
+      const userInfo = {
+        email: loginData.email,
+        role: selectedRole,
+        loginType: "email"
+      }
+      localStorage.setItem("userInfo", JSON.stringify(userInfo))
+      
+      // Redirect based on role
+      if (selectedRole === "donor") {
+        router.push("/donor/dashboard")
+      } else {
+        router.push("/ngo/dashboard")
+      }
+    } catch (err) {
+      setError("Login failed. Please check your credentials.")
+      console.error("Email login error:", err)
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setLoginData(prev => ({
+      ...prev,
+      [name]: value
+    }))
   }
 
   if (isLoading) {
@@ -166,12 +244,71 @@ export default function LoginPage() {
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center space-x-2">
-              <Wallet className="w-5 h-5" />
-              <span>Wallet Authentication</span>
+              {showEmailLogin ? (
+                <>
+                  {selectedRole === "donor" ? <Users className="w-5 h-5" /> : <Building className="w-5 h-5" />}
+                  <span>{selectedRole === "donor" ? "Donor" : "NGO"} Login</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-5 h-5" />
+                  <span>Wallet Authentication</span>
+                </>
+              )}
             </CardTitle>
-            <CardDescription>Connect with MetaMask or Phantom wallet</CardDescription>
+            <CardDescription>
+              {showEmailLogin 
+                ? `Sign in to your ${selectedRole === "donor" ? "donor" : "NGO"} account`
+                : "Connect with MetaMask or Phantom wallet"
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Role Selection */}
+            <div className="space-y-3">
+              <div className="text-center">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">Select your role</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant={selectedRole === "donor" ? "default" : "outline"}
+                  className={`h-auto p-4 flex-col space-y-2 ${
+                    selectedRole === "donor" 
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                      : "hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-950/20"
+                  }`}
+                  onClick={() => {
+                    setSelectedRole("donor")
+                    setShowEmailLogin(true)
+                  }}
+                >
+                  <Users className="w-6 h-6" />
+                  <div className="text-center">
+                    <div className="font-medium">Donor</div>
+                    <div className="text-xs opacity-80">Support causes</div>
+                  </div>
+                </Button>
+                <Button
+                  variant={selectedRole === "ngo" ? "default" : "outline"}
+                  className={`h-auto p-4 flex-col space-y-2 ${
+                    selectedRole === "ngo" 
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                      : "hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-950/20"
+                  }`}
+                  onClick={() => {
+                    setSelectedRole("ngo")
+                    setShowEmailLogin(true)
+                  }}
+                >
+                  <Building className="w-6 h-6" />
+                  <div className="text-center">
+                    <div className="font-medium">NGO</div>
+                    <div className="text-xs opacity-80">Create campaigns</div>
+                  </div>
+                </Button>
+              </div>
+            </div>
+
             {/* Error Message */}
             {error && (
               <Alert variant="destructive">
@@ -185,25 +322,84 @@ export default function LoginPage() {
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-emerald-600" />
-                  <p className="text-sm text-muted-foreground">Connecting to wallet...</p>
-                  <p className="text-xs text-muted-foreground mt-2">Please check your wallet for connection request</p>
+                  <p className="text-sm text-muted-foreground">
+                    {showEmailLogin ? "Signing in..." : "Connecting to wallet..."}
+                  </p>
+                  {!showEmailLogin && (
+                    <p className="text-xs text-muted-foreground mt-2">Please check your wallet for connection request</p>
+                  )}
                 </div>
               </div>
             )}
 
+            {/* Email/Password Login Form */}
+            {!connecting && showEmailLogin && selectedRole && (
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Input
+                      type="email"
+                      name="email"
+                      placeholder="Enter your email"
+                      value={loginData.email}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="password"
+                      name="password"
+                      placeholder="Enter your password"
+                      value={loginData.password}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  disabled={connecting}
+                >
+                  Sign in as {selectedRole === "donor" ? "Donor" : "NGO"}
+                </Button>
+                
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowEmailLogin(false)
+                      setSelectedRole(null)
+                      setLoginData({ email: "", password: "" })
+                      setError("")
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ← Back to role selection
+                  </Button>
+                </div>
+              </form>
+            )}
+
             {/* Wallet Options */}
-            {!connecting && (
+            {!connecting && !showEmailLogin && (
               <div className="space-y-4">
                 {/* MetaMask */}
                 <Button
                   variant="outline"
                   className={`justify-start h-auto p-4 w-full ${
-                    walletStatus.metamaskInstalled
+                    walletStatus.metamaskInstalled && selectedRole
                       ? "bg-orange-50 hover:bg-orange-100 border-orange-200 dark:bg-orange-950/20 dark:hover:bg-orange-950/30 dark:border-orange-800"
                       : "bg-gray-50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-800 opacity-60"
                   } border`}
                   onClick={() => handleWalletConnect("metamask")}
-                  disabled={connecting || !walletStatus.metamaskInstalled}
+                  disabled={connecting || !walletStatus.metamaskInstalled || !selectedRole}
                 >
                   <div className="flex items-center space-x-3 w-full">
                     <span className="text-2xl">🦊</span>
@@ -223,17 +419,16 @@ export default function LoginPage() {
                       </div>
                     </div>
                     {!walletStatus.metamaskInstalled && (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <div
+                        className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-md cursor-pointer hover:bg-emerald-700 flex items-center space-x-1"
                         onClick={(e) => {
                           e.stopPropagation()
                           window.open("https://metamask.io/download/", "_blank")
                         }}
                       >
-                        <Download className="w-3 h-3 mr-1" />
-                        Install
-                      </Button>
+                        <Download className="w-3 h-3" />
+                        <span>Install</span>
+                      </div>
                     )}
                   </div>
                 </Button>
@@ -242,12 +437,12 @@ export default function LoginPage() {
                 <Button
                   variant="outline"
                   className={`justify-start h-auto p-4 w-full ${
-                    walletStatus.phantomInstalled
+                    walletStatus.phantomInstalled && selectedRole
                       ? "bg-purple-50 hover:bg-purple-100 border-purple-200 dark:bg-purple-950/20 dark:hover:bg-purple-950/30 dark:border-purple-800"
                       : "bg-gray-50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-800 opacity-60"
                   } border`}
                   onClick={() => handleWalletConnect("phantom")}
-                  disabled={connecting || !walletStatus.phantomInstalled}
+                  disabled={connecting || !walletStatus.phantomInstalled || !selectedRole}
                 >
                   <div className="flex items-center space-x-3 w-full">
                     <span className="text-2xl">👻</span>
@@ -265,17 +460,16 @@ export default function LoginPage() {
                       </div>
                     </div>
                     {!walletStatus.phantomInstalled && (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <div
+                        className="px-3 py-1 text-xs bg-emerald-600 text-white rounded-md cursor-pointer hover:bg-emerald-700 flex items-center space-x-1"
                         onClick={(e) => {
                           e.stopPropagation()
                           window.open("https://phantom.app/", "_blank")
                         }}
                       >
-                        <Download className="w-3 h-3 mr-1" />
-                        Install
-                      </Button>
+                        <Download className="w-3 h-3" />
+                        <span>Install</span>
+                      </div>
                     )}
                   </div>
                 </Button>
@@ -347,5 +541,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

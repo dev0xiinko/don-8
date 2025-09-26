@@ -5,17 +5,16 @@ import { StepsSection } from "@/components/homepage/sections/StepsSection"
 import { CTASection } from "@/components/homepage/sections/CTASection"
 import { Footer } from "@/components/homepage/layout/Footer"
 import { MissionVission } from "@/components/homepage/sections/MissionVission"
-{/*import dynamic from "next/dynamic"*/}
+// import dynamic from "next/dynamic"
 import { features } from "@/types/data/features"
 import { stats } from "@/types/data/stats"
 import { steps } from "@/types/data/steps"
 import { CampaignsSection } from "@/components/homepage/sections/CampaignSection"
 
-
-{/*const WorldMap = dynamic(() => import('@/components/homepage/sections/WorldMap').then(mod => mod.WorldMapFeature), {
-  loading: () => <p className="text-center">Loading...</p>, // Optional fallback
-  ssr: false, // Optional: disables server-side rendering
-});*/}
+// const WorldMap = dynamic(() => import('@/components/homepage/sections/WorldMap').then(mod => mod.WorldMapFeature), {
+//   loading: () => <p className="text-center">Loading...</p>, // Optional fallback
+//   ssr: false, // Optional: disables server-side rendering
+// });
 
 export default function HomePage() {
 
