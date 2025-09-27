@@ -18,12 +18,12 @@ export const features = [
   },
   {
     icon: <Zap className="w-6 h-6" />,
-    title: "Zero Fees",
+    title: "Less Fees",
     description: "Direct peer-to-peer transactions eliminate middlemen and reduce costs to near zero",
   },
   {
     icon: <Globe className="w-6 h-6" />,
-    title: "Multi-Currency",
+    title: "Cryptocurrency",
     description: "Accept donations in multiple cryptocurrencies for fast, borderless transactions",
   },
   {

@@ -40,7 +40,7 @@ const mockCampaigns: Campaign[] = [
     raised: 32500,
     donors: 245,
     daysLeft: 15,
-    image: "/api/placeholder/400/250",
+  image: "/flood.png",
     urgent: true,
     featured: true,
     status: 'active'
@@ -56,7 +56,7 @@ const mockCampaigns: Campaign[] = [
     raised: 18750,
     donors: 156,
     daysLeft: 8,
-    image: "/api/placeholder/400/250",
+  image: "/flood.png",
     urgent: true,
     featured: false,
     status: 'active'
@@ -72,7 +72,7 @@ const mockCampaigns: Campaign[] = [
     raised: 45000,
     donors: 89,
     daysLeft: 30,
-    image: "/api/placeholder/400/250",
+  image: "/flood.png",
     urgent: false,
     featured: true,
     status: 'active'
@@ -88,7 +88,7 @@ const mockCampaigns: Campaign[] = [
     raised: 68250,
     donors: 412,
     daysLeft: 5,
-    image: "/api/placeholder/400/250",
+  image: "/flood.png",
     urgent: true,
     featured: true,
     status: 'active'
