@@ -6,9 +6,9 @@ import { CTASection } from "@/components/homepage/sections/CTASection"
 import { Footer } from "@/components/homepage/layout/Footer"
 import { MissionVission } from "@/components/homepage/sections/MissionVission"
 // import dynamic from "next/dynamic"
-import { features } from "@/types/data/features"
-import { stats } from "@/types/data/stats"
-import { steps } from "@/types/data/steps"
+import { features } from "@/mock/data/features"
+import { stats } from "@/mock/data/stats"
+import { steps } from "@/mock/data/steps"
 import { CampaignsSection } from "@/components/homepage/sections/CampaignSection"
 
 // const WorldMap = dynamic(() => import('@/components/homepage/sections/WorldMap').then(mod => mod.WorldMapFeature), {

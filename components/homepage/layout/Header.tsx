@@ -13,6 +13,10 @@ export function Header() {
           <span className="text-xl font-bold">DON-8</span>
         </div>
         <nav className="hidden md:flex items-center space-x-8">
+          {/* redirect to NGO subdomain */}
+          <Link href="https://ngo.don8.app" className="text-muted-foreground hover:text-foreground transition-colors">
+            NGO
+          </Link>
           <Link href="#campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
             Campaigns
           </Link>
