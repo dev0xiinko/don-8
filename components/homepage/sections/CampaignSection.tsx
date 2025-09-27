@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -154,7 +153,7 @@ export function CampaignsSection() {
   }
 
   return (
-    <section className="py-24 px-4 bg-background">
+    <section id="campaigns" className="py-24 px-4 bg-background">
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="text-center mb-12">
@@ -195,7 +194,7 @@ export function CampaignsSection() {
             <Card key={campaign.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
               <div className="relative">
                 <img
-                  src={campaign.image || "/placeholder.svg"}
+                  src={campaign.image ? `/${campaign.image}` : "/flood.png"}
                   alt={campaign.title}
                   className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                 />

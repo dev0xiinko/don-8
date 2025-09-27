@@ -13,14 +13,14 @@ export function Header() {
           <span className="text-xl font-bold">DON-8</span>
         </div>
         <nav className="hidden md:flex items-center space-x-8">
+          <Link href="#campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
+            Campaigns
+          </Link>
           <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </Link>
           <Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
             How It Works
-          </Link>
-          <Link href="#about" className="text-muted-foreground hover:text-foreground transition-colors">
-            About
           </Link>
         </nav>
         <div className="flex items-center space-x-3">

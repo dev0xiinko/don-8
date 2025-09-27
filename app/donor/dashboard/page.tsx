@@ -390,7 +390,7 @@ export default function DonorDashboard() {
                     <CardContent className="p-6">
                       <div className="flex items-start space-x-4">
                         <Avatar className="w-16 h-16">
-                          <AvatarImage src={ngo.image || "/placeholder.svg"} />
+                          <AvatarImage src={ngo.image || "/flood.png"} />
                           <AvatarFallback>
                             {ngo.name.substring(0, 2)}
                           </AvatarFallback>
