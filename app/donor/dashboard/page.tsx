@@ -11,7 +11,7 @@ export default function DonorDashboard() {
   useEffect(() => {
     if (typeof window !== "undefined" && window.ethereum) {
       const updateWallet = () => {
-        const addr = window.ethereum.selectedAddress;
+        const addr = window.ethereum ? window.ethereum.selectedAddress : null;
         if (addr) {
           window.localStorage.setItem("donor_wallet_address", addr);
           setWalletAddress(addr);
@@ -24,7 +24,9 @@ export default function DonorDashboard() {
       updateWallet();
       window.ethereum.on("accountsChanged", updateWallet);
       return () => {
-        window.ethereum.removeListener("accountsChanged", updateWallet);
+        if (typeof window !== "undefined" && window.ethereum) {
+          window.ethereum.removeListener("accountsChanged", updateWallet);
+        }
       };
     } else {
       // fallback to localStorage if no ethereum
