@@ -7,7 +7,11 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/themes/theme-toggle"
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import dynamic from "next/dynamic"
+
+const InstallMetaMaskDemo = dynamic(() => import("@/components/features/wallet/InstallMetaMaskDemo"), { ssr: false })
 
 export function Header() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -75,7 +79,11 @@ export function Header() {
         </nav>
         <div className="flex items-center space-x-3">
           <ThemeToggle />
-          {walletAddress ? (
+          {typeof window !== "undefined" && !window.ethereum ? (
+            <div className="ml-2">
+              <InstallMetaMaskDemo />
+            </div>
+          ) : walletAddress ? (
             <>
               <Link href="/donor/dashboard">
                 <Avatar className="w-9 h-9 cursor-pointer border-2 border-emerald-600 hover:border-emerald-700 transition">
