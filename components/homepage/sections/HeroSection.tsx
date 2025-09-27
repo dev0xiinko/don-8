@@ -20,24 +20,20 @@ export function HeroSection({ stats }: { stats: { value: string; label: string }
           technology. Support NGOs with complete transparency and zero hidden fees.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <Link href="/donor/dashboard">
+          <Link href="/register?type=ngo">
             <Button 
               size="lg" 
               className="bg-emerald-600 hover:bg-emerald-700 group"
             >
-              Start Donating
+              Apply as NGO
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
-          <Link href="/register?type=ngo">
-            <Button size="lg" variant="outline">
-              Register NGO
-            </Button>
-          </Link>
+        
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-12 border-t">
-          {stats.map((stat, index) => (
+          {(stats ?? []).map((stat, index) => (
             <div key={index} className="text-center">
               <div className="text-2xl md:text-3xl font-bold text-emerald-600 mb-2">{stat.value}</div>
               <div className="text-sm text-muted-foreground">{stat.label}</div>
