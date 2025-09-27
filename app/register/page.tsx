@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -16,44 +17,65 @@ import { ArrowLeft, Shield, Users, Building, Mail, Lock, Eye, EyeOff, User } fro
 import { SocialLogin } from "@/components/auth/SocialLogin"
 
 export default function RegisterPage() {
-  const searchParams = useSearchParams()
-  const userType = searchParams.get("type") || "donor"
-
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    userType: userType,
+    userType: "ngo",
     name: "",
     email: "",
     password: "",
-    organization: "",
     description: "",
     website: "",
     category: "",
     agreeTerms: false,
-    // Donor-specific fields
-    phone: "",
-    address: "",
-    city: "",
-    country: "",
-    donationInterests: [] as string[],
-    preferredDonationAmount: "",
-    // NGO-specific fields
     registrationNumber: "",
     foundedYear: "",
     teamSize: "",
+    twitter: "",
+    facebook: "",
+    linkedin: "",
+    walletAddress: "",
   })
+  const router = useRouter();
+  const [walletError, setWalletError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleInputChange = (field: string, value: string | boolean | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
+  
+  const handleConnectWallet = async () => {
+    setWalletError("");
+    if (typeof window !== "undefined" && window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        if (accounts && accounts[0]) {
+          setFormData((prev) => ({ ...prev, walletAddress: accounts[0] }));
+        }
+      } catch (err) {
+        setWalletError("Failed to connect wallet. Please try again.");
+      }
+    } else {
+      setWalletError("MetaMask is not installed. Please install MetaMask and try again.");
+    }
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // Simulate registration - redirect to appropriate dashboard
-    if (formData.userType === "donor") {
-      window.location.href = "/donor/dashboard"
-    } else {
-      window.location.href = "/ngo/dashboard"
+    setSubmitting(true);
+    // Simulate API call to submit application for admin review
+    try {
+      await fetch("/api/ngo-application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      alert("Your application has been submitted for admin review.");
+      router.push("/");
+    } catch (err) {
+      alert("Failed to submit application. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -72,48 +94,17 @@ export default function RegisterPage() {
               </div>
               <span className="text-2xl font-bold">DON-8</span>
             </div>
-            <h1 className="text-3xl font-bold mb-2">Join DON-8</h1>
-            <p className="text-muted-foreground">Create your account and start making a difference</p>
           </div>
         </div>
 
         <Card className="shadow-xl border-0 bg-white">
           <CardHeader className="text-center pb-8 bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-lg">
-            <div className="flex justify-center space-x-3 mb-8">
-              <Button
-                variant={formData.userType === "donor" ? "default" : "outline"}
-                onClick={() => handleInputChange("userType", "donor")}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                  formData.userType === "donor" 
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md" 
-                    : "border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50"
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span>Donor</span>
-              </Button>
-              <Button
-                variant={formData.userType === "ngo" ? "default" : "outline"}
-                onClick={() => handleInputChange("userType", "ngo")}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
-                  formData.userType === "ngo" 
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md" 
-                    : "border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50"
-                }`}
-              >
-                <Building className="w-4 h-4" />
-                <span>NGO</span>
-              </Button>
-            </div>
 
-            <CardTitle className="text-2xl font-bold text-gray-900 mb-3">
-              {formData.userType === "donor" ? "Donor Registration" : "NGO Registration"}
+            <CardTitle className="text-2xl font-bold text-gray-900 mb-3 pt-4">
+              NGO Registration
             </CardTitle>
             <CardDescription className="text-gray-600 text-base">
-              {formData.userType === "donor" 
-                ? "Join our community of donors and start making a difference" 
-                : "Register your organization and connect with donors worldwide"
-              }
+              Register your organization and connect with donors worldwide
             </CardDescription>
           </CardHeader>
 
@@ -122,7 +113,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label htmlFor="name" className="text-sm font-semibold text-gray-700">
-                    {formData.userType === "donor" ? "Full Name" : "Organization Name"}
+                    Organization Name
                   </Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -155,6 +146,59 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {/* Social Media & Wallet */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="twitter" className="text-sm font-semibold text-gray-700">Twitter</Label>
+                  <Input
+                    id="twitter"
+                    value={formData.twitter}
+                    onChange={(e) => handleInputChange("twitter", e.target.value)}
+                    placeholder="https://twitter.com/yourorg"
+                    className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="facebook" className="text-sm font-semibold text-gray-700">Facebook</Label>
+                  <Input
+                    id="facebook"
+                    value={formData.facebook}
+                    onChange={(e) => handleInputChange("facebook", e.target.value)}
+                    placeholder="https://facebook.com/yourorg"
+                    className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <Label htmlFor="linkedin" className="text-sm font-semibold text-gray-700">LinkedIn</Label>
+                  <Input
+                    id="linkedin"
+                    value={formData.linkedin}
+                    onChange={(e) => handleInputChange("linkedin", e.target.value)}
+                    placeholder="https://linkedin.com/company/yourorg"
+                    className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="walletAddress" className="text-sm font-semibold text-gray-700">EVM Wallet Address</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="walletAddress"
+                      value={formData.walletAddress}
+                      onChange={(e) => handleInputChange("walletAddress", e.target.value)}
+                      placeholder="0x..."
+                      className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 flex-1"
+                      required
+                    />
+                    <Button type="button" variant="outline" onClick={handleConnectWallet}>
+                      Connect
+                    </Button>
+                  </div>
+                  {walletError && <div className="text-red-500 text-xs mt-1">{walletError}</div>}
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
                   Password
@@ -182,112 +226,9 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {formData.userType === "donor" && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="phone" className="text-sm font-semibold text-gray-700">
-                        Phone Number <span className="text-gray-400 font-normal">(Optional)</span>
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange("phone", e.target.value)}
-                        placeholder="+1 (555) 123-4567"
-                        className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor="country" className="text-sm font-semibold text-gray-700">
-                        Country
-                      </Label>
-                      <Select onValueChange={(value) => handleInputChange("country", value)}>
-                        <SelectTrigger className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="us">United States</SelectItem>
-                          <SelectItem value="ca">Canada</SelectItem>
-                          <SelectItem value="uk">United Kingdom</SelectItem>
-                          <SelectItem value="au">Australia</SelectItem>
-                          <SelectItem value="de">Germany</SelectItem>
-                          <SelectItem value="fr">France</SelectItem>
-                          <SelectItem value="jp">Japan</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="city" className="text-sm font-semibold text-gray-700">
-                        City <span className="text-gray-400 font-normal">(Optional)</span>
-                      </Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => handleInputChange("city", e.target.value)}
-                        placeholder="Your city"
-                        className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <Label htmlFor="preferredDonationAmount" className="text-sm font-semibold text-gray-700">
-                        Preferred Donation Range <span className="text-gray-400 font-normal">(Optional)</span>
-                      </Label>
-                      <Select onValueChange={(value) => handleInputChange("preferredDonationAmount", value)}>
-                        <SelectTrigger className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500">
-                          <SelectValue placeholder="Select range" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10-50">$10 - $50</SelectItem>
-                          <SelectItem value="50-100">$50 - $100</SelectItem>
-                          <SelectItem value="100-500">$100 - $500</SelectItem>
-                          <SelectItem value="500-1000">$500 - $1,000</SelectItem>
-                          <SelectItem value="1000+">$1,000+</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Donation Interests <span className="text-gray-400 font-normal">(Optional)</span>
-                    </Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {[
-                        { value: "education", label: "Education" },
-                        { value: "healthcare", label: "Healthcare" },
-                        { value: "environment", label: "Environment" },
-                        { value: "poverty", label: "Poverty Relief" },
-                        { value: "disaster", label: "Disaster Relief" },
-                        { value: "human-rights", label: "Human Rights" },
-                      ].map((interest) => (
-                        <div key={interest.value} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={interest.value}
-                            checked={formData.donationInterests.includes(interest.value)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                handleInputChange("donationInterests", [...formData.donationInterests, interest.value])
-                              } else {
-                                handleInputChange("donationInterests", formData.donationInterests.filter(i => i !== interest.value))
-                              }
-                            }}
-                          />
-                          <Label htmlFor={interest.value} className="text-sm text-gray-600">
-                            {interest.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {formData.userType === "ngo" && (
-                <>
+              {/* NGO Registration Fields */}
                   <div className="space-y-3">
                     <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
                       Organization Description
@@ -384,8 +325,7 @@ export default function RegisterPage() {
                       </Select>
                     </div>
                   </div>
-                </>
-              )}
+              {/* End NGO Registration Fields */}
 
               <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
                 <Checkbox
@@ -409,24 +349,12 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={!formData.agreeTerms}
+                disabled={!formData.agreeTerms || submitting}
               >
                 <Shield className="w-5 h-5 mr-2" />
-                Create Account
+                {submitting ? "Submitting..." : "Submit Application"}
               </Button>
             </form>
-
-            {/* Social Login for NGOs - Professional placement at bottom */}
-            {formData.userType === "ngo" && (
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="text-center mb-6">
-                  <p className="text-sm text-gray-500 font-medium">Or continue with</p>
-                </div>
-                <div className="space-y-3">
-                  <SocialLogin userType="ngo" />
-                </div>
-              </div>
-            )}
 
             <div className="mt-6 text-center">
               <p className="text-muted-foreground">
