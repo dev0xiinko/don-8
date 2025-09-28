@@ -48,13 +48,27 @@ export function middleware(request: NextRequest) {
     const walletConnection = request.cookies.get("wallet_connected")
     
     if (!walletConnection) {
+      // Redirect to login instead of register
       return NextResponse.redirect(new URL("/login?redirect=" + encodeURIComponent(request.nextUrl.pathname), request.url))
     }
+    // If wallet is connected, allow direct access to donation page
+  }
+  
+  // Check if accessing donors page
+  if (request.nextUrl.pathname.startsWith("/donors")) {
+    const walletConnection = request.cookies.get("wallet_connected")
+    
+    if (!walletConnection) {
+      return NextResponse.redirect(new URL("/login?redirect=" + encodeURIComponent(request.nextUrl.pathname), request.url))
+    }
+    // If wallet is connected, redirect to campaigns page to show campaign details
+    return NextResponse.redirect(new URL("/campaigns", request.url))
   }
 
   return NextResponse.next()
 }
 
+// Add donors page to the matcher
 export const config = {
-  matcher: ["/admin/:path*", "/donor/dashboard/:path*", "/ngo/dashboard/:path*", "/donate/:path*"],
+  matcher: ["/admin/:path*", "/donor/dashboard/:path*", "/ngo/dashboard/:path*", "/donate/:path*", "/donors/:path*"],
 }

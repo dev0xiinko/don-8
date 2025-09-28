@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,21 +12,10 @@ import { ArrowLeft, Wallet, AlertCircle, CheckCircle, Loader2, Download, Users, 
 import { useWallet } from "@/contexts/WalletProvider"
 import { isMetaMaskInstalled, isPhantomInstalled } from "@/lib/wallet-utils"
 
-
-function LoginPageContent() {
+export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/donor/dashboard'
-  // Wallet auto-redirect for donor
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const addr = window.localStorage.getItem("donor_wallet_address");
-      if (addr) {
-        router.push("/donor/dashboard");
-      }
-    }
-  }, [router]);
-
   const { isLoading, isConnected, walletInfo, userInfo, connectWallet } = useWallet()
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState("")
@@ -552,13 +541,5 @@ function LoginPageContent() {
         </div>
       </div>
     </div>
-  )
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <LoginPageContent />
-    </Suspense>
   )
 }

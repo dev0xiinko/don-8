@@ -201,6 +201,9 @@ export default function NGOVerificationPage() {
       return (
         <div className="space-y-8">
           <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-2xl mb-4 shadow-lg">
+              <Building className="w-8 h-8 text-white" />
+            </div>
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Organization Information</h3>
             <p className="text-gray-600 dark:text-gray-400">Tell us about your organization and its mission</p>
           </div>

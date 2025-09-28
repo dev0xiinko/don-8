@@ -8,11 +8,7 @@ export default function useAuthRedirect() {
   const { isConnected } = useWallet()
 
   const redirectToDonate = (campaignId: string) => {
-    if (!isConnected) {
-      router.push(`/login?redirect=${encodeURIComponent(`/donate/${campaignId}`)}`)
-    } else {
-      router.push(`/donate/${campaignId}`)
-    }
+    router.push(`/campaign/${campaignId}`)
   }
 
   const redirectToDashboard = (userType: 'donor' | 'ngo' = 'donor') => {
