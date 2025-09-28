@@ -64,12 +64,17 @@ export function Header() {
           <span className="text-xl font-bold">DON-8</span>
         </div>
         <nav className="hidden md:flex items-center space-x-8">
-          <Link href="https://ngo.don8.app" className="text-muted-foreground hover:text-foreground transition-colors">
-            NGO
-          </Link>
+          <Link href="/ngo/management" className="text-muted-foreground hover:text-foreground transition-colors">
+             NGO
+           </Link>
           <Link href="#campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
             Campaigns
           </Link>
+          {walletAddress && (
+            <Link href="/campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
+              Donors
+            </Link>
+          )}
           <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </Link>
@@ -85,13 +90,15 @@ export function Header() {
             </div>
           ) : walletAddress ? (
             <>
-              <Link href="/donor/dashboard">
-                <Avatar className="w-9 h-9 cursor-pointer border-2 border-emerald-600 hover:border-emerald-700 transition">
-                  <AvatarFallback>
-                    {walletAddress.slice(0, 2).toUpperCase()}{walletAddress.slice(-2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <div className="flex items-center space-x-2">
+                <Link href="/profile">
+                  <Avatar className="w-9 h-9 cursor-pointer border-2 border-emerald-600 hover:border-emerald-700 transition">
+                    <AvatarFallback>
+                      {walletAddress.slice(0, 2).toUpperCase()}{walletAddress.slice(-2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </div>
               <span className="text-xs text-muted-foreground truncate max-w-[120px]">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
               <Button
                 variant="outline"
@@ -100,10 +107,6 @@ export function Header() {
                 onClick={() => {
                   window.localStorage.removeItem("donor_wallet_address");
                   setWalletAddress(null);
-                  if (typeof window !== "undefined" && window.ethereum && window.ethereum.selectedAddress) {
-                    // MetaMask: force disconnect by switching to an empty account if possible
-                    // (MetaMask does not support programmatic disconnect, so just clear state)
-                  }
                   router.push("/");
                 }}
               >

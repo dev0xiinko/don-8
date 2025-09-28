@@ -79,7 +79,6 @@ export function useDonations() {
     const updatedDonations = [newDonation, ...donations]
     setDonations(updatedDonations)
     calculateStats(updatedDonations)
-
     // Save to localStorage
     try {
       localStorage.setItem(`donations_${userInfo?.address}`, JSON.stringify(updatedDonations))
@@ -96,7 +95,7 @@ export function useDonations() {
     )
     setDonations(updatedDonations)
     calculateStats(updatedDonations)
-    
+
     try {
       localStorage.setItem(`donations_${userInfo?.address}`, JSON.stringify(updatedDonations))
     } catch (error) {
@@ -118,3 +117,4 @@ export function useDonations() {
     refreshDonations: loadDonations,
   }
 }
+ 

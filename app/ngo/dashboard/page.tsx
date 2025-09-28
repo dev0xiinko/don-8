@@ -62,6 +62,7 @@ export default function NGODashboard() {
       currency: "S",
       date: "2025-01-10",
       txHash: "0x1234...5678",
+      isAnonymous: true,
     },
     {
       id: 2,
@@ -70,6 +71,7 @@ export default function NGODashboard() {
       currency: "S",
       date: "2025-01-09",
       txHash: "0x9876...5432",
+      isAnonymous: false,
     },
     {
       id: 3,
@@ -78,6 +80,56 @@ export default function NGODashboard() {
       currency: "S",
       date: "2025-01-08",
       txHash: "0x5555...7777",
+      isAnonymous: true,
+    },
+  ]
+  
+  // Mock data for donors list
+  const donorsList = [
+    {
+      id: 1,
+      name: "Anonymous",
+      totalDonated: 2.5,
+      currency: "S",
+      lastDonation: "2025-01-10",
+      donationsCount: 5,
+      isAnonymous: true,
+    },
+    {
+      id: 2,
+      name: "John Doe",
+      totalDonated: 3.2,
+      currency: "S",
+      lastDonation: "2025-01-09",
+      donationsCount: 3,
+      isAnonymous: false,
+    },
+    {
+      id: 3,
+      name: "Sarah Smith",
+      totalDonated: 1.8,
+      currency: "S",
+      lastDonation: "2025-01-08",
+      donationsCount: 2,
+      isAnonymous: false,
+    },
+    {
+      id: 4,
+      name: "Anonymous",
+      totalDonated: 0.5,
+      currency: "S",
+      lastDonation: "2025-01-07",
+      donationsCount: 1,
+      isAnonymous: true,
+    },
+    {
+      id: 5,
+      name: "Michael Johnson",
+      totalDonated: 5.0,
+      currency: "S",
+      lastDonation: "2025-01-06",
+      donationsCount: 4,
+      isAnonymous: false,
     },
   ]
 
@@ -248,12 +300,13 @@ export default function NGODashboard() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="compliance">Compliance</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+          <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="donors">Donors</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -516,6 +569,64 @@ export default function NGODashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="donors" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Donors List</CardTitle>
+                <CardDescription>View all donors and their contribution details</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">Donor</th>
+                        <th className="text-left py-3 px-4">Total Donated</th>
+                        <th className="text-left py-3 px-4">Donations</th>
+                        <th className="text-left py-3 px-4">Last Donation</th>
+                        <th className="text-left py-3 px-4">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {donorsList.map((donor) => (
+                        <tr key={donor.id} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="w-8 h-8">
+                                {donor.isAnonymous ? (
+                                  <AvatarFallback className="bg-gray-200 text-gray-600">A</AvatarFallback>
+                                ) : (
+                                  <AvatarFallback>{donor.name.substring(0, 2)}</AvatarFallback>
+                                )}
+                              </Avatar>
+                              <span>{donor.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            {donor.totalDonated} {donor.currency}
+                          </td>
+                          <td className="py-3 px-4">{donor.donationsCount}</td>
+                          <td className="py-3 px-4">{donor.lastDonation}</td>
+                          <td className="py-3 px-4">
+                            {donor.isAnonymous ? (
+                              <Badge variant="outline" className="bg-gray-100">
+                                Anonymous
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-100 text-green-800">
+                                Public
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
