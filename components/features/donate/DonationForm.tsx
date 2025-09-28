@@ -19,7 +19,7 @@ export default function DonationForm({ campaignId, campaignTitle, onDonationComp
   const [message, setMessage] = useState<string>("")
   const [isAnonymous, setIsAnonymous] = useState<boolean>(false)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const { isConnected, connect } = useWallet()
+  const { isConnected } = useWallet()
 
   const handleDonate = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -30,9 +30,11 @@ export default function DonationForm({ campaignId, campaignTitle, onDonationComp
     setIsSubmitting(true)
     
     try {
-      // If wallet is not connected, connect first
+      // If wallet is not connected, show an alert and return
       if (!isConnected) {
-        await connect()
+        alert("Please connect your wallet before donating.")
+        setIsSubmitting(false)
+        return
       }
       
       // Mock donation process

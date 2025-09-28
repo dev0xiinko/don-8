@@ -5,9 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { FileText, Upload, Download } from "lucide-react"
 
+// Define type for reports
+type Report = {
+  id: number
+  title: string
+  description: string
+  status: "Verified" | "Pending" | string
+  date: string
+  type: string
+  fileUrl: string
+}
+
 export default function NGOReports() {
   // Mock reports data
-  const reports = [
+  const reports: Report[] = [
     {
       id: 1,
       title: "Q2 2023 Financial Report",
@@ -38,28 +49,20 @@ export default function NGOReports() {
   ]
   
   // Function to handle report download
-  const handleDownload = (report) => {
-    // Create an anchor element and trigger download
-    const link = document.createElement('a');
-    link.href = report.fileUrl;
-    link.download = report.title.replace(/\s+/g, '_') + '.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = (report: Report) => {
+    const link = document.createElement('a')
+    link.href = report.fileUrl
+    link.download = report.title.replace(/\s+/g, '_') + '.pdf'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Impact Reports</h1>
-        <Button onClick={() => {
-          alert("Upload new report functionality triggered");
-          // In a real app, this would open a file picker dialog
-          // const input = document.createElement('input');
-          // input.type = 'file';
-          // input.onchange = (e) => { /* Handle file upload */ };
-          // input.click();
-        }}>
+        <Button onClick={() => alert("Upload new report functionality triggered")}>
           <Upload className="mr-2 h-4 w-4" />
           Upload New Report
         </Button>
