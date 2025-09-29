@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react"
 import type { WalletInfo, UserInfo } from "@/types/wallet"
 import {
   connectMetaMask,
@@ -31,6 +31,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null)
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+
+  // Handle disconnect
+  const handleDisconnect = useCallback(() => {
+    setWalletInfo(null)
+    setUserInfo(null)
+    setIsConnected(false)
+    clearWalletConnection()
+    document.cookie = "wallet_connected=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+  }, [])
+
+  const refreshWalletInfo = useCallback(async () => {
+    try {
+      const currentWallet = await getCurrentWalletInfo()
+      if (currentWallet) {
+        setWalletInfo(currentWallet)
+        setUserInfo({
+          address: currentWallet.address,
+          walletType: currentWallet.walletType,
+          network: currentWallet.network,
+        })
+        setIsConnected(true)
+      } else {
+        handleDisconnect()
+      }
+    } catch (error) {
+      console.error("Error refreshing wallet info:", error)
+      handleDisconnect()
+    }
+  }, [handleDisconnect])
 
   // Initialize wallet connection on mount
   useEffect(() => {
@@ -70,13 +99,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       },
       () => {
         handleDisconnect()
-      },
+      }
     )
 
-    return cleanup
-  }, [])
+    return typeof cleanup === "function" ? cleanup : undefined
+  }, [refreshWalletInfo, handleDisconnect])
 
-  const connectWallet = async (walletType: "metamask" | "phantom") => {
+  const connectWallet = useCallback(async (walletType: "metamask" | "phantom") => {
     try {
       setIsLoading(true)
 
@@ -103,11 +132,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         network: wallet.network,
       })
       setIsConnected(true)
-
-      // Store connection for persistence
       storeWalletConnection(wallet.walletType, wallet.address)
-      
-      // Set cookie for middleware protection
       document.cookie = `wallet_connected=true; path=/; max-age=${60 * 60 * 24 * 7}` // 7 days
     } catch (error) {
       console.error("Wallet connection error:", error)
@@ -115,50 +140,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const disconnect = async () => {
+  const disconnect = useCallback(async () => {
     try {
       if (walletInfo) {
         await disconnectWallet(walletInfo.walletType)
       }
-      handleDisconnect()
     } catch (error) {
       console.error("Disconnect error:", error)
-      // Still clear local state even if disconnect fails
+    } finally {
       handleDisconnect()
     }
-  }
-
-  const handleDisconnect = () => {
-    setWalletInfo(null)
-    setUserInfo(null)
-    setIsConnected(false)
-    clearWalletConnection()
-    
-    // Clear cookie
-    document.cookie = "wallet_connected=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-  }
-
-  const refreshWalletInfo = async () => {
-    try {
-      const currentWallet = await getCurrentWalletInfo()
-      if (currentWallet) {
-        setWalletInfo(currentWallet)
-        setUserInfo({
-          address: currentWallet.address,
-          walletType: currentWallet.walletType,
-          network: currentWallet.network,
-        })
-        setIsConnected(true)
-      } else {
-        handleDisconnect()
-      }
-    } catch (error) {
-      console.error("Error refreshing wallet info:", error)
-      handleDisconnect()
-    }
-  }
+  }, [walletInfo, handleDisconnect])
 
   const value: WalletContextType = {
     isConnected,

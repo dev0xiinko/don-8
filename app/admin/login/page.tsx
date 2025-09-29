@@ -166,18 +166,6 @@ export default function AdminLogin() {
                     )}
                   </Button>
                 </form>
-
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials</h3>
-                  <div className="text-sm text-blue-700 space-y-1">
-                    <div>
-                      <strong>Email:</strong> admin@don8.app
-                    </div>
-                    <div>
-                      <strong>Password:</strong> admin123
-                    </div>
-                  </div>
-                </div>
               </TabsContent>
 
               <TabsContent value="social" className="space-y-4 mt-6">

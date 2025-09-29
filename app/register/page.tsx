@@ -184,12 +184,13 @@ export default function RegisterPage() {
               />
 
               {/* Website & Category */}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
                   id="website"
                   value={formData.website}
                   onChange={(e) => handleInputChange("website", e.target.value)}
-                  placeholder="https://yourorganization.org"
+                  placeholder="https://yourwebsite.org(optional)"
                 />
                 <Select onValueChange={(value) => handleInputChange("category", value)}>
                   <SelectTrigger>
