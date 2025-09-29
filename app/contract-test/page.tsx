@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ContractInteraction from '@/components/ContractInteraction';
-import { connectWallet, getWalletInfo } from '@/lib/wallet-utils';
+import { connectMetaMask, isMetaMaskInstalled } from '@/lib/wallet-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { getContractAddress } from '@/lib/contract-utils';
@@ -19,10 +19,9 @@ export default function ContractTestPage() {
     setIsConnecting(true);
     setError('');
     try {
-      const address = await connectWallet();
-      setWalletAddress(address);
-      const { chainId: currentChainId } = await getWalletInfo();
-      setChainId(currentChainId);
+      const walletInfo = await connectMetaMask();
+      setWalletAddress(walletInfo.address);
+      setChainId(walletInfo.chainId);
     } catch (err: any) {
       console.error('Error connecting wallet:', err);
       setError(err.message || 'Failed to connect wallet');
@@ -34,10 +33,10 @@ export default function ContractTestPage() {
   useEffect(() => {
     const checkWalletConnection = async () => {
       try {
-        const { address, chainId: currentChainId } = await getWalletInfo();
-        if (address) {
-          setWalletAddress(address);
-          setChainId(currentChainId);
+        if (isMetaMaskInstalled() && window.ethereum?.selectedAddress) {
+          const walletInfo = await connectMetaMask();
+          setWalletAddress(walletInfo.address);
+          setChainId(walletInfo.chainId);
         }
       } catch (err) {
         console.error('Error checking wallet connection:', err);
