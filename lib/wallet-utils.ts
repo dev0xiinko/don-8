@@ -57,6 +57,47 @@ export const switchToEthereumMainnet = async (): Promise<void> => {
   }
 }
 
+export const switchToBaseSepolia = async (): Promise<void> => {
+  if (!isMetaMaskInstalled()) {
+    throw new Error("MetaMask is not installed")
+  }
+
+  try {
+    // Try to switch to Base Sepolia
+    try {
+      await window.ethereum!.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x14a34" }], // Base Sepolia chainId (84532 in hex)
+      })
+    } catch (switchError: any) {
+      // This error code indicates that the chain has not been added to MetaMask
+      if (switchError.code === 4902) {
+        await window.ethereum!.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: "0x14a34", // Base Sepolia chainId (84532 in hex)
+              chainName: "Base Sepolia",
+              nativeCurrency: {
+                name: "Sepolia ETH",
+                symbol: "ETH",
+                decimals: 18,
+              },
+              rpcUrls: ["https://sepolia.base.org"],
+              blockExplorerUrls: ["https://sepolia.basescan.org"],
+            },
+          ],
+        })
+      } else {
+        throw switchError
+      }
+    }
+  } catch (error: any) {
+    console.error("Network switch error:", error)
+    throw new Error("Failed to switch to Base Sepolia")
+  }
+}
+
 // Phantom utilities
 export const isPhantomInstalled = (): boolean => {
   return typeof window !== "undefined" && typeof window.solana !== "undefined" && !!window.solana.isPhantom
