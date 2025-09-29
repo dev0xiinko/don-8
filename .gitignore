@@ -19,7 +19,10 @@
 
 # production
 /build
-
+/components/
+/donate/
+/campaign/
+/mock/
 # misc
 .DS_Store
 *.pem

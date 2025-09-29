@@ -10,17 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Eye, CheckCircle, XCircle, Filter, Search, Shield, LogOut } from "lucide-react"
-import { useAdmin } from "@/hooks/useAdmin"
+import { useAdmin, NGOApplication } from "@/hooks/useAdmin"
 import { ApplicationReviewModal } from "@/components/admin/application-review-modal"
-import type { NGOApplication } from "@/hooks/useAdmin"
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const {
-    applications,
-    isLoading,
-    updateApplicationStatus,
-  } = useAdmin()
+  const { applications, isLoading, updateApplicationStatus } = useAdmin()
 
   const [selectedApplication, setSelectedApplication] = useState<NGOApplication | null>(null)
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false)
@@ -43,11 +38,11 @@ export default function AdminDashboard() {
   }
 
   const handleApproveApplication = async (applicationId: string, notes?: string) => {
-    return await updateApplicationStatus(applicationId, "approved", notes)
+    await updateApplicationStatus(applicationId, "approved", notes)
   }
 
   const handleRejectApplication = async (applicationId: string, notes?: string) => {
-    return await updateApplicationStatus(applicationId, "rejected", notes)
+    await updateApplicationStatus(applicationId, "rejected", notes)
   }
 
   const handleLogout = () => {
@@ -74,8 +69,7 @@ export default function AdminDashboard() {
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
       app.organizationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.location.toLowerCase().includes(searchQuery.toLowerCase())
+      app.email.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || app.status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -145,17 +139,9 @@ export default function AdminDashboard() {
                 Array.from({ length: 5 }).map((_, i) => (
                   <Card key={i}>
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-5 w-48" />
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-64" />
-                        </div>
-                        <div className="space-y-2">
-                          <Skeleton className="h-6 w-20" />
-                          <Skeleton className="h-8 w-16" />
-                        </div>
-                      </div>
+                      <Skeleton className="h-5 w-48 mb-2" />
+                      <Skeleton className="h-4 w-32 mb-2" />
+                      <Skeleton className="h-3 w-64" />
                     </CardContent>
                   </Card>
                 ))
@@ -166,57 +152,52 @@ export default function AdminDashboard() {
               ) : (
                 filteredApplications.map((application) => (
                   <Card key={application.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold">{application.organizationName}</h3>
-                            <Badge className={`${getStatusColor(application.status)} border text-xs`}>
-                              {application.status.replace("_", " ")}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {application.category}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{application.description}</p>
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{application.location}</span>
-                            <span>•</span>
-                            <span>{application.email}</span>
-                            <span>•</span>
-                            <span>Submitted {new Date(application.submittedAt).toLocaleDateString()}</span>
-                          </div>
+                    <CardContent className="p-4 flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="font-semibold">{application.organizationName}</h3>
+                          <Badge className={`${getStatusColor(application.status)} border text-xs`}>
+                            {application.status.replace("_", " ")}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {application.category}
+                          </Badge>
                         </div>
-                        <div className="flex flex-col space-y-2 items-end">
-                          <Button size="sm" onClick={() => handleReviewApplication(application)}>
-                            <Eye className="w-3 h-3 mr-1" />
-                            Review
-                          </Button>
-                          {application.status === "pending" && (
-                            <div className="flex space-x-1 mt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-green-600 border-green-600 hover:bg-green-50 bg-transparent"
-                                onClick={() => handleApproveApplication(application.id)}
-                                title="Approve"
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                                <span className="ml-1">Approve</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
-                                onClick={() => handleRejectApplication(application.id)}
-                                title="Reject"
-                              >
-                                <XCircle className="w-3 h-3" />
-                                <span className="ml-1">Reject</span>
-                              </Button>
-                            </div>
-                          )}
+                        <p className="text-sm text-gray-600 mb-2">{application.description}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <span>{application.email}</span>
+                          <span>•</span>
+                          <span>Submitted {new Date(application.createdAt).toLocaleDateString()}</span>
                         </div>
+                      </div>
+
+                      <div className="flex flex-col space-y-2 items-end ml-4">
+                        <Button size="sm" onClick={() => handleReviewApplication(application)}>
+                          <Eye className="w-3 h-3 mr-1" />
+                          Review
+                        </Button>
+                        {application.status === "pending" && (
+                          <div className="flex space-x-1 mt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              onClick={() => handleApproveApplication(application.id)}
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-600 hover:bg-red-50"
+                              onClick={() => handleRejectApplication(application.id)}
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
