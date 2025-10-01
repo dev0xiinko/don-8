@@ -18,7 +18,6 @@ interface Campaign {
   endDate: string;
   urgent: boolean;
   donorCount: number;
-  imageUrl?: string;
 }
 
 interface CreateCampaignFormProps {
@@ -31,21 +30,11 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
   const [targetAmount, setTargetAmount] = useState("");
   const [endDate, setEndDate] = useState("");
   const [urgent, setUrgent] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleSubmit = () => {
     if (!name || !description || !targetAmount || !endDate) {
       alert("Please fill in all required fields");
       return;
-    }
-
-    // Handle image URL - either from file upload or direct URL
-    let finalImageUrl = imageUrl;
-    if (imageFile) {
-      // In a real app, you would upload the file to a server/cloud storage
-      // For now, create a local URL preview
-      finalImageUrl = URL.createObjectURL(imageFile);
     }
 
     const campaignData = {
@@ -56,7 +45,6 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
       endDate,
       urgent,
       donorCount: 0,
-      imageUrl: finalImageUrl,
     };
 
     onCampaignCreate(campaignData);
@@ -67,26 +55,6 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
     setTargetAmount("");
     setEndDate("");
     setUrgent(false);
-    setImageUrl("");
-    setImageFile(null);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        alert("Please upload an image file");
-        return;
-      }
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Image size should be less than 5MB");
-        return;
-      }
-      setImageFile(file);
-      setImageUrl(""); // Clear URL if file is selected
-    }
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -120,75 +88,6 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
               onChange={(e) => setDescription(e.target.value)}
               className="min-h-[100px]"
             />
-          </div>
-
-          {/* Image Upload Section */}
-          <div className="space-y-2">
-            <Label>Campaign Image</Label>
-            <div className="space-y-3">
-              {/* File Upload */}
-              <div>
-                <Label htmlFor="imageFile" className="text-sm text-gray-600">
-                  Upload Image
-                </Label>
-                <Input
-                  id="imageFile"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="mt-1"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Max size: 5MB. Supported formats: JPG, PNG, GIF
-                </p>
-              </div>
-
-              {/* OR Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-muted-foreground">Or</span>
-                </div>
-              </div>
-
-              {/* URL Input */}
-              <div>
-                <Label htmlFor="imageUrl" className="text-sm text-gray-600">
-                  Image URL
-                </Label>
-                <Input
-                  id="imageUrl"
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={imageUrl}
-                  onChange={(e) => {
-                    setImageUrl(e.target.value);
-                    setImageFile(null); // Clear file if URL is entered
-                  }}
-                  disabled={!!imageFile}
-                  className="mt-1"
-                />
-              </div>
-
-              {/* Image Preview */}
-              {(imageFile || imageUrl) && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
-                  <p className="text-sm font-medium mb-2">Preview:</p>
-                  <div className="relative w-full h-48 bg-gray-100 rounded overflow-hidden">
-                    <img
-                      src={imageFile ? URL.createObjectURL(imageFile) : imageUrl}
-                      alt="Campaign preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "https://via.placeholder.com/400x300?text=Invalid+Image";
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

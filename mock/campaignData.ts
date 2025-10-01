@@ -19,16 +19,16 @@ const mockCampaigns: Campaign[] = [
   {
     
     id: "1",
-    title: "Emergency Relief for Flood Victims",
-    description: "Providing immediate shelter, food, and medical aid to families affected by recent flooding in rural communities.",
-    ngoName: "Disaster Relief Foundation",
+    title: "Emergency Relief for Earthquake Victims",
+    description: "Providing immediate shelter, food, and medical aid to families affected by recent earthquakes in Cebu",
+    ngoName: "Web3 Cebu",
     location: "Philippines",
     category: "Emergency Relief",
     targetAmount: 50000,
-    raisedAmount: 32500,
-    donorCount: 245,
+    raisedAmount: 0,
+    donorCount: 0,
     daysLeft: 12,
-    image: "flood.png",
+    image: "earthquake.png",
     urgent: true,
     featured: true,
     walletAddress: "0xAbC1234567890defABC1234567890DEFabc12345"

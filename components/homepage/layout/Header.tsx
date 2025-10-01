@@ -64,17 +64,12 @@ export function Header() {
           <span className="text-xl font-bold">DON-8</span>
         </div>
         <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/ngo/management" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/ngo/login" className="text-muted-foreground hover:text-foreground transition-colors">
              NGO
            </Link>
           <Link href="#campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
             Campaigns
           </Link>
-          {walletAddress && (
-            <Link href="/campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
-              Donors
-            </Link>
-          )}
           <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </Link>

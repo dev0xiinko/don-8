@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Shield, Mail, User } from "lucide-react";
+import { ArrowLeft, Shield } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -31,12 +31,14 @@ export default function RegisterPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [walletError, setWalletError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const [formData, setFormData] = useState({
     userType: "ngo",
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     description: "",
     website: "",
     category: "",
@@ -76,21 +78,17 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setPasswordError("");
 
+    // password validation
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
       sessionStorage.setItem("ngoProfile", JSON.stringify(formData));
-
-      // @note Turning this API off for now
-
-      // const res = await fetch("/api/ngo-application", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(formData),
-      // });
-
-      // if (!res.ok) throw new Error("Failed to submit application");
-
       setSubmitted(true);
     } catch (err) {
       console.error(err);
@@ -183,6 +181,49 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {/* Password */}
+              <div className="space-y-3">
+                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
+                    placeholder="Enter a secure password"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-3">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    handleInputChange("confirmPassword", e.target.value)
+                  }
+                  placeholder="Re-enter your password"
+                  required
+                />
+                {passwordError && (
+                  <p className="text-red-500 text-sm">{passwordError}</p>
+                )}
+              </div>
+
               {/* Wallet */}
               <div className="space-y-3">
                 <Label htmlFor="walletAddress">EVM Wallet Address</Label>
@@ -222,13 +263,12 @@ export default function RegisterPage() {
               />
 
               {/* Website & Category */}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
                   id="website"
                   value={formData.website}
                   onChange={(e) => handleInputChange("website", e.target.value)}
-                  placeholder="https://yourwebsite.org(optional)"
+                  placeholder="https://yourwebsite.org (optional)"
                 />
                 <Select
                   onValueChange={(value) =>
