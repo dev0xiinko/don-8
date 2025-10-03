@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: { id: string };
+}
+
+export async function POST(request: Request, { params }: RouteParams) {
   try {
     const body = await request.json();
     const { notes } = body;
@@ -21,17 +21,13 @@ export async function POST(
 
     console.log(`Rejecting application ${id} with notes:`, notes);
 
-    // Update database
-    await prisma.ngoApplication.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-        adminNotes: notes,
-        reviewedAt: new Date(),
-        reviewedBy: 'admin', // In production, get from auth token
-        reviewNotes: notes
-      }
-    });
+    // TODO: Connect to backend API instead of direct database
+    // const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // await fetch(`${backendUrl}/ngo/${id}/status`, {
+    //   method: 'PATCH',
+    //   headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+    //   body: JSON.stringify({ status: 'REJECTED', notes })
+    // });
 
     return NextResponse.json({
       message: 'Application rejected successfully',

@@ -1,10 +1,9 @@
 "use client";
 
 import { CreateCampaignForm } from "@/components/create-campaign-form";
-import { Campaign } from "@/lib/mock-data";
 
 interface CreateCampaignTabProps {
-  onCampaignCreate: (campaignData: Omit<Campaign, "id" | "createdAt" | "status">) => void;
+  onCampaignCreate: (campaignData: any) => void;
 }
 
 export function CreateCampaignTab({ onCampaignCreate }: CreateCampaignTabProps) {

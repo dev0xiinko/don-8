@@ -125,9 +125,11 @@ export default function DonatePage() {
 
   const fetchBalance = async (address: string) => {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const balanceBigInt = await provider.getBalance(address)
-      setBalance(parseFloat(ethers.formatEther(balanceBigInt)).toFixed(4))
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const balanceBigInt = await provider.getBalance(address)
+        setBalance(parseFloat(ethers.formatEther(balanceBigInt)).toFixed(4))
+      }
     } catch (err) { console.error(err) }
   }
 
@@ -172,6 +174,9 @@ export default function DonatePage() {
 
     setIsLoading(true)
     try {
+      if (!window.ethereum) {
+        throw new Error('MetaMask not found')
+      }
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const tx = await signer.sendTransaction({ 
@@ -199,7 +204,7 @@ export default function DonatePage() {
       // Wait for transaction confirmation and update status
       const receipt = await tx.wait()
       const updatedHistoryWithConfirmation = donationHistory.map(d => 
-        d.txHash === tx.hash 
+        d.txHash === tx.hash && receipt
           ? { ...d, status: 'confirmed' as const, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed.toString() }
           : d
       )
