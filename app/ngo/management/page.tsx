@@ -172,9 +172,9 @@ export default function NGODashboardPage() {
       status: "completed" as const,
     };
 
-    setNgoData((prev) => ({
+    setNgoData((prev: typeof ngoData) => ({
       ...prev,
-      withdrawals: [newWithdrawal, ...prev.withdrawals],
+      withdrawals: [newWithdrawal, ...(prev?.withdrawals ?? [])],
     }));
   };
 
