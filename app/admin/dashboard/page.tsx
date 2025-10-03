@@ -39,19 +39,21 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAdmin, NGOApplication } from "@/hooks/useAdmin";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ApplicationReviewModal } from "@/components/admin/application-review-modal";
 import { mockNgoAppsData } from "./mockData";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { applications, isLoading, updateApplicationStatus } = useAdmin();
+  const { adminSession, isAuthenticated, logout } = useAdminAuth();
 
   const [selectedApplication, setSelectedApplication] =
     useState<NGOApplication | null>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [adminInfo, setAdminInfo] = useState<any>(null);
+
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [notification, setNotification] = useState<{
     message: string;
@@ -62,14 +64,7 @@ export default function AdminDashboard() {
     application: any | null;
   }>({ isOpen: false, application: null });
 
-  useEffect(() => {
-    const session = localStorage.getItem("admin_session");
-    if (session) {
-      setAdminInfo(JSON.parse(session));
-    } else {
-      router.push("/admin/login");
-    }
-  }, [router]);
+  // Authentication is handled by useAdminAuth hook
 
   const handleReviewApplication = (application: NGOApplication) => {
     setSelectedApplication(application);
@@ -166,7 +161,7 @@ export default function AdminDashboard() {
               ...app,
               status,
               reviewedAt: new Date().toISOString(),
-              reviewedBy: adminInfo?.email || "admin@don8.com",
+              reviewedBy: adminSession?.email || adminSession?.walletAddress || "admin@don8.com",
               reviewNotes:
                 notes || `Application ${status} from admin dashboard`,
             };
@@ -185,12 +180,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin_session");
-    document.cookie =
-      "admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
-    router.push("/admin/login");
-  };
+  const handleLogout = logout; // Use logout function from useAdminAuth hook
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -298,7 +288,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">
-              Welcome, {adminInfo?.email}
+              Welcome, {adminSession?.email || (adminSession?.walletAddress && `Admin (${adminSession.walletAddress.slice(0, 6)}...${adminSession.walletAddress.slice(-4)})`) || 'Admin'}
             </span>
 
             <Button variant="ghost" size="sm" onClick={handleLogout}>

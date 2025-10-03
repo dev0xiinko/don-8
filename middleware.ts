@@ -10,9 +10,9 @@ export function middleware(request: NextRequest) {
     }
 
     // Check for admin session (in a real app, verify JWT token)
-    const adminSession = request.cookies.get("admin_session")
+    const adminToken = request.cookies.get("admin_token")
 
-    if (!adminSession) {
+    if (!adminToken) {
       return NextResponse.redirect(new URL("/admin/login", request.url))
     }
   }
