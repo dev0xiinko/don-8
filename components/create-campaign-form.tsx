@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles } from "lucide-react";
+import { storeImageBlob } from "@/lib/blob-storage";
 
 interface Campaign {
   name: string;
@@ -40,23 +41,38 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
       return;
     }
 
-    // Handle image URL - either from file upload or direct URL
-    let finalImageUrl = imageUrl;
+        // Handle image - use blob storage for consistent storage
+    let finalImageUrl = "";
+    let blobImages: string[] = [];
+    
     if (imageFile) {
-      // In a real app, you would upload the file to a server/cloud storage
-      // For now, create a local URL preview
-      finalImageUrl = URL.createObjectURL(imageFile);
+      // Store file using blob storage system
+      finalImageUrl = storeImageBlob(imageFile);
+      blobImages = [finalImageUrl];
+    } else if (imageUrl) {
+      // Store URL using blob storage system
+      finalImageUrl = storeImageBlob(imageUrl, "campaign-image");
+      blobImages = [finalImageUrl];
     }
 
     const campaignData = {
-      name,
+      name, // Keep original name field for type compatibility
+      title: name, // Also add title for API consistency
       description,
+      longDescription: description, // Set both for compatibility
       targetAmount: parseFloat(targetAmount),
+      raisedAmount: 0,
       currentAmount: 0,
       endDate,
-      urgent,
+      urgent, // Keep original urgent field
+      urgencyLevel: urgent ? "urgent" : "normal",
       donorCount: 0,
       imageUrl: finalImageUrl,
+      images: blobImages,
+      category: "Emergency Relief", // Default category
+      location: "Philippines", // Default location
+      beneficiaries: 0,
+      tags: urgent ? ["urgent", "emergency"] : [],
     };
 
     onCampaignCreate(campaignData);

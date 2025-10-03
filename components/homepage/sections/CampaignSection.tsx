@@ -1,35 +1,54 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Clock, MapPin, Users, Target, ArrowRight } from 'lucide-react'
 import useAuthRedirect from "@/hooks/useAuthRedirect"
-
-
-import mockCampaigns, { Campaign } from "@/mock/campaignData"
+import type { Campaign } from "@/lib/mock-data"
 
 export function CampaignsSection() {
   const [filter, setFilter] = useState<'all' | 'urgent' | 'featured'>('all')
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loading, setLoading] = useState(true)
   const { redirectToDonate, redirectToCampaigns } = useAuthRedirect()
   
-  const filteredCampaigns = mockCampaigns.filter(campaign => {
-    if (filter === 'urgent') return campaign.urgent
-    if (filter === 'featured') return campaign.featured
-    return true
+  // Fetch campaigns from API
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      try {
+        const response = await fetch('/api/ngo/campaigns')
+        const result = await response.json()
+        if (result.success) {
+          setCampaigns(result.campaigns)
+        }
+      } catch (error) {
+        console.error('Error fetching campaigns:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchCampaigns()
+  }, [])
+  
+  const filteredCampaigns = campaigns.filter(campaign => {
+    if (filter === 'urgent') return campaign.urgencyLevel === 'urgent'
+    if (filter === 'featured') return campaign.featured === true
+    return campaign.status === 'active' // Only show active campaigns
   })
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'PHP',
+    if (!amount || isNaN(amount)) return '0 SONIC'
+    return `${new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount)
+    }).format(amount)} SONIC`
   }
 
   const getProgressPercentage = (raised: number, target: number) => {
+    if (!target || target <= 0 || !raised || raised < 0) return 0
     return Math.min((raised / target) * 100, 100)
   }
 
@@ -81,18 +100,59 @@ export function CampaignsSection() {
           </div>
         </div>
 
-        {/* Campaigns Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {filteredCampaigns.map((campaign) => (
+        {/* Loading State */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="overflow-hidden animate-pulse">
+                <div className="w-full h-48 bg-gray-200"></div>
+                <CardHeader>
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-2 bg-gray-200 rounded"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : filteredCampaigns.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-500 mb-4">
+              <Target className="w-16 h-16 mx-auto opacity-50" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">No Active Campaigns Yet</h3>
+            <p className="text-gray-500 mb-4">
+              NGOs are working on creating meaningful campaigns to support communities in need.
+            </p>
+            <Button variant="outline" onClick={() => window.location.href = '/register'}>
+              Register Your NGO
+            </Button>
+          </div>
+        ) : (
+          /* Campaigns Grid */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {filteredCampaigns.map((campaign) => (
             <Card key={campaign.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
               <div className="relative">
                 <img
-                  src={campaign.image ? `/${campaign.image}` : "/flood.png"}
-                  alt={campaign.title}
+                  src={
+                    (campaign.images && campaign.images.length > 0) 
+                      ? campaign.images[0]
+                      : campaign.imageUrl || campaign.image || "/flood.png"
+                  }
+                  alt={campaign.title || 'Campaign Image'}
                   className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    e.currentTarget.src = '/flood.png';
+                  }}
                 />
                 <div className="absolute top-4 left-4 flex gap-2">
-                  {campaign.urgent && (
+                  {campaign.urgencyLevel === 'urgent' && (
                     <Badge className="bg-red-600 hover:bg-red-700 text-white">
                       Urgent
                     </Badge>
@@ -103,50 +163,75 @@ export function CampaignsSection() {
                     </Badge>
                   )}
                 </div>
-                <div className="absolute top-4 right-4">
-                  <Badge className={getCategoryColor(campaign.category)}>
-                    {campaign.category}
-                  </Badge>
-                </div>
+                {campaign.category && (
+                  <div className="absolute top-4 right-4">
+                    <Badge className={getCategoryColor(campaign.category)}>
+                      {campaign.category}
+                    </Badge>
+                  </div>
+                )}
               </div>
               
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg line-clamp-2 group-hover:text-emerald-600 transition-colors">
-                  {campaign.title}
+                  {campaign.title || 'Untitled Campaign'}
                 </CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {campaign.description}
+                <CardDescription className="line-clamp-3 text-sm leading-relaxed">
+                  {campaign.longDescription || campaign.description || 'No description available'}
                 </CardDescription>
               </CardHeader>
               
               <CardContent className="space-y-4">
                 {/* NGO and Location */}
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span className="font-medium">{campaign.ngoName}</span>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{campaign.location}</span>
-                  </div>
+                  <span className="font-medium">{campaign.ngoName || 'Unknown NGO'}</span>
+                  {campaign.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{campaign.location}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">
-                      {formatAmount(campaign.raisedAmount)} raised
+                      {formatAmount(campaign.raisedAmount || campaign.currentAmount || 0)} raised
                     </span>
                     <span className="text-muted-foreground">
                       of {formatAmount(campaign.targetAmount)}
                     </span>
                   </div>
                   <Progress 
-                    value={getProgressPercentage(campaign.raisedAmount, campaign.targetAmount)} 
+                    value={getProgressPercentage(campaign.raisedAmount || campaign.currentAmount || 0, campaign.targetAmount)} 
                     className="h-2"
                   />
                   <div className="text-xs text-muted-foreground">
-                    {getProgressPercentage(campaign.raisedAmount, campaign.targetAmount).toFixed(1)}% funded
+                    {getProgressPercentage(campaign.raisedAmount || campaign.currentAmount || 0, campaign.targetAmount).toFixed(1)}% funded
                   </div>
                 </div>
+
+                {/* Campaign Impact */}
+                {campaign.beneficiaries && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium text-emerald-600">
+                      {campaign.beneficiaries.toLocaleString()}
+                    </span>
+                    <span className="ml-1">people to be helped</span>
+                  </div>
+                )}
+
+                {/* Campaign Tags */}
+                {campaign.tags && campaign.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {campaign.tags.slice(0, 3).map((tag, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
 
                 {/* Stats */}
                 <div className="flex items-center justify-between text-sm">
@@ -156,14 +241,19 @@ export function CampaignsSection() {
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Clock className="w-4 h-4" />
-                    <span>{campaign.daysLeft} days left</span>
+                    <span>
+                      {campaign.endDate ? (() => {
+                        const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                        return daysLeft > 0 ? `${daysLeft} days left` : 'Campaign ended';
+                      })() : 'Ongoing'}
+                    </span>
                   </div>
                 </div>
 
                 {/* Action Button */}
                 <Button 
                   className="w-full bg-emerald-600 hover:bg-emerald-700 group"
-                  onClick={() => redirectToDonate(campaign.id)}
+                  onClick={() => redirectToDonate(campaign.id.toString())}
                 >
                   Visit Campaign
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -171,9 +261,11 @@ export function CampaignsSection() {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
 
-        {/* View All Button */}
+        {/* View All Button - Only show if not loading */}
+        {!loading && (
         <div className="text-center">
           <Button 
             size="lg" 
@@ -185,6 +277,7 @@ export function CampaignsSection() {
             <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
+        )}
       </div>
     </section>
   )

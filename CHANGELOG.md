@@ -1,5 +1,42 @@
 # DON-8 Release History
 
+## 🚀 v2.3.0 - Real-Time Donation Tracking System (October 3, 2025)
+
+### 🎯 **MAJOR FEATURE RELEASE**
+Complete real-time donation tracking system with persistent JSON storage and blockchain verification.
+
+#### ✅ **Real-Time Transaction Monitoring**
+- **NEW**: Automatic pending → confirmed status tracking
+- **NEW**: 3-second blockchain polling with 10-minute timeout
+- **NEW**: Visual status indicators with animations
+- **NEW**: Block number and gas usage tracking
+
+#### ✅ **Persistent JSON File Storage**
+- **NEW**: Server-side donation storage (`/mock/donations/[campaignId].json`)
+- **NEW**: Automatic campaign raised amount updates
+- **NEW**: Cross-session data persistence
+- **NEW**: Timestamped backup system
+
+#### ✅ **Complete Donation Transparency**
+- **NEW**: Public donation feed (no wallet required)
+- **NEW**: Statistics dashboard with real-time metrics
+- **NEW**: Anonymous donation support
+- **NEW**: Full blockchain verification with explorer links
+
+#### 📁 **New Files Added**
+- `/lib/donation-storage.ts` - Core donation management system
+- `/app/api/donations/[campaignId]/route.ts` - Persistence API endpoints
+- `/components/campaign-donations.tsx` - Real-time donation display
+- `/DONATION_SYSTEM_README.md` - Complete documentation
+
+#### 🔧 **Technical Improvements**
+- ✅ Fixed React hooks compliance issues
+- ✅ Enhanced campaign page with real-time updates
+- ✅ Improved error handling and cleanup
+- ✅ Mobile-responsive design enhancements
+
+---
+
 ## 🚀 v2.1.0-production-ready (October 3, 2025)
 
 ### 🎯 **PRODUCTION READY RELEASE**

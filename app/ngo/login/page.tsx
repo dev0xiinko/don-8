@@ -1,7 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+
+interface ApprovedNGO {
+  id: number;
+  organizationName: string;
+  email: string;
+  hasCredentials: boolean;
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,51 +17,86 @@ import {
   Building2, Lock, Mail, Eye, EyeOff, AlertCircle, CheckCircle2, Heart, Shield, Users, TrendingUp
 } from "lucide-react"
 
-// Mock credentials
-const MOCK_CREDENTIALS = {
-  email: "admin@pdrf.org.ph",
-  password: "DisasterRelief2024"
-}
-
 export default function NGOLoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [availableNgos, setAvailableNgos] = useState<ApprovedNGO[]>([])
+  const [loadingNgos, setLoadingNgos] = useState(true)
+  const [selectedNgo, setSelectedNgo] = useState<ApprovedNGO | null>(null)
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError("")
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      if (
-        formData.email === MOCK_CREDENTIALS.email &&
-        formData.password === MOCK_CREDENTIALS.password
-      ) {
+    try {
+      const response = await fetch('/api/ngo/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
         setSuccess(true)
         setError("")
-        // Store login state
+        
+        // Store login state and NGO info
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('ngo_logged_in', 'true')
-          sessionStorage.setItem('ngo_email', formData.email)
+          sessionStorage.setItem('ngo_info', JSON.stringify(result.ngo))
         }
+        
         // Redirect to management page
         setTimeout(() => {
           window.location.href = '/ngo/management'
         }, 1000)
       } else {
-        setError("Invalid email or password. Please try again.")
+        setError(result.message || "Login failed. Please try again.")
         setSuccess(false)
       }
+    } catch (error) {
+      setError("Network error. Please check your connection and try again.")
+      setSuccess(false)
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
-  const handleDemoFill = () => {
-    setFormData(MOCK_CREDENTIALS)
-    setError("")
+  // Fetch available approved NGOs
+  useEffect(() => {
+    const fetchAvailableNgos = async () => {
+      try {
+        const response = await fetch('/api/ngo/credentials');
+        const result = await response.json();
+        if (result.success) {
+          setAvailableNgos(result.approvedNgos);
+          if (result.approvedNgos.length > 0) {
+            setSelectedNgo(result.approvedNgos[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching NGOs:', error);
+      } finally {
+        setLoadingNgos(false);
+      }
+    };
+    
+    fetchAvailableNgos();
+  }, []);
+
+  const handleSelectNgo = (ngo: ApprovedNGO) => {
+    setSelectedNgo(ngo);
+    setFormData({
+      email: ngo.email,
+      password: "" // User needs to enter the actual password
+    });
+    setError("");
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -126,7 +168,7 @@ export default function NGOLoginPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-sm opacity-90">Total Donations</div>
-                <div className="text-3xl font-bold">$2.4M+</div>
+                <div className="text-3xl font-bold">2.4M+ SONIC</div>
               </div>
               <div className="text-right">
                 <div className="text-sm opacity-90">Active Campaigns</div>
@@ -154,6 +196,48 @@ export default function NGOLoginPage() {
 
             <CardContent>
               <div className="space-y-4">
+                {/* Available NGOs */}
+                {!loadingNgos && availableNgos.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Select Approved NGO</Label>
+                    <div className="grid gap-2">
+                      {availableNgos.map((ngo: ApprovedNGO) => (
+                        <div
+                          key={ngo.id}
+                          onClick={() => handleSelectNgo(ngo)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            selectedNgo?.id === ngo.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-sm">{ngo.organizationName}</div>
+                              <div className="text-xs text-gray-600">{ngo.email}</div>
+                            </div>
+                            <div className="text-xs text-green-600 font-medium">✓ Approved</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {loadingNgos && (
+                  <div className="text-center py-4">
+                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <div className="text-sm text-gray-600">Loading approved NGOs...</div>
+                  </div>
+                )}
+
+                {!loadingNgos && availableNgos.length === 0 && (
+                  <div className="text-center py-4">
+                    <div className="text-sm text-gray-600 mb-2">No approved NGOs found</div>
+                    <div className="text-xs text-gray-500">Please contact admin for approval</div>
+                  </div>
+                )}
+
                 {/* Email Field */}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
@@ -220,6 +304,18 @@ export default function NGOLoginPage() {
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>Login successful! Redirecting...</AlertDescription>
                   </Alert>
+                )}
+
+                {/* Auto-fill Email Button */}
+                {selectedNgo && (
+                  <Button
+                    onClick={() => handleSelectNgo(selectedNgo)}
+                    variant="outline"
+                    className="w-full h-11 text-base mb-2"
+                    disabled={isLoading || success}
+                  >
+                    Fill Email for {selectedNgo.organizationName}
+                  </Button>
                 )}
 
                 {/* Login Button */}

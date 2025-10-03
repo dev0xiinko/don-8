@@ -41,6 +41,7 @@ import {
 import { useAdmin, NGOApplication } from "@/hooks/useAdmin";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { ApplicationReviewModal } from "@/components/admin/application-review-modal";
+import { DashboardStats, QuickActions } from "@/components/admin/dashboard-stats";
 import { mockNgoAppsData } from "./mockData";
 
 export default function AdminDashboard() {
@@ -245,7 +246,8 @@ export default function AdminDashboard() {
     return mockNgoApplications;
   };
 
-  const rawApplications = getApplicationsFromStorage();
+  // Use applications from API instead of session storage
+  const rawApplications = applications;
 
   // Re-run when refresh trigger changes
   useEffect(() => {
@@ -258,7 +260,6 @@ export default function AdminDashboard() {
       (app.organizationName?.toLowerCase() || "").includes(
         searchQuery.toLowerCase()
       ) ||
-      (app.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (app.email?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
       (app.description?.toLowerCase() || "").includes(
         searchQuery.toLowerCase()
@@ -306,85 +307,9 @@ export default function AdminDashboard() {
           Review and manage NGO registration applications
         </p>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Applications
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {rawApplications.length}
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    Pending Review
-                  </p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {
-                      rawApplications.filter((app) => app.status === "pending")
-                        .length
-                    }
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Eye className="w-4 h-4 text-yellow-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {
-                      rawApplications.filter((app) => app.status === "approved")
-                        .length
-                    }
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Rejected</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {
-                      rawApplications.filter((app) => app.status === "rejected")
-                        .length
-                    }
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                  <XCircle className="w-4 h-4 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Dashboard Statistics */}
+        <DashboardStats applications={rawApplications} />
+        <QuickActions onRefresh={() => window.location.reload()} isLoading={isLoading} />
         <Card>
           <CardHeader>
             <CardTitle>NGO Applications</CardTitle>

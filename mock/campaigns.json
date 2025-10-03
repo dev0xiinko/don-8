@@ -1,0 +1,96 @@
+[
+  {
+    "id": 1,
+    "title": "Emergency Relief for Earthquake Victims",
+    "name": "Emergency Relief for Earthquake Victims",
+    "description": "This is for the victims of Earthquake",
+    "longDescription": "Providing immediate shelter, clean water, food supplies, and medical aid to families affected by the earthquake in Cebu region.",
+    "ngoId": 1,
+    "ngoName": "Web3 Cebu",
+    "category": "Emergency Relief",
+    "location": "Cebu, Philippines",
+    "targetAmount": 100,
+    "raisedAmount": 0,
+    "currentAmount": 0,
+    "donorCount": 0,
+    "imageUrl": "/earthquake.png",
+    "images": [
+      "/earthquake.png"
+    ],
+    "startDate": "2025-10-03T12:24:22.812Z",
+    "endDate": "2025-11-11",
+    "status": "active",
+    "featured": false,
+    "urgencyLevel": "normal",
+    "walletAddress": "0x8cba8d62cad772c4275266d1128d73d02cdd2830",
+    "createdAt": "2025-10-03T12:24:22.812Z",
+    "lastUpdated": "2025-10-03T12:52:47.994Z",
+    "beneficiaries": 500,
+    "tags": [
+      "emergency",
+      "earthquake",
+      "relief"
+    ],
+    "updates": [
+      {
+        "id": 1759495967994,
+        "title": "We deployed",
+        "content": "Let us go!",
+        "images": [],
+        "createdAt": "2025-10-03T12:52:47.994Z",
+        "type": "general"
+      },
+      {
+        "id": 1,
+        "type": "general",
+        "title": "Campaign Launch",
+        "content": "We have launched our emergency relief campaign for earthquake victims in Cebu. Your support will help provide immediate aid to affected families.",
+        "date": "2025-10-03T12:24:22.812Z",
+        "createdAt": "2025-10-03T12:24:22.812Z"
+      }
+    ],
+    "milestones": []
+  },
+  {
+    "id": 2,
+    "title": "Another Test",
+    "description": "Another Test Campaign for Web3 Cebu Donation Platform.",
+    "longDescription": "Another Test Campaign for Web3 Cebu Donation Platform.",
+    "ngoId": 1,
+    "ngoName": "Web3 Cebu",
+    "category": "Emergency Relief",
+    "targetAmount": 100,
+    "raisedAmount": 0,
+    "currentAmount": 0,
+    "donorCount": 0,
+    "imageUrl": "blob:http://localhost:3002/f2d6303d-e610-4055-9edd-90173c08abef",
+    "images": [
+      "blob:http://localhost:3002/f2d6303d-e610-4055-9edd-90173c08abef"
+    ],
+    "location": "Philippines",
+    "startDate": "2025-10-03T12:55:15.392Z",
+    "endDate": "2025-11-11",
+    "status": "active",
+    "featured": false,
+    "urgencyLevel": "urgent",
+    "walletAddress": "0x8cba8d62cad772c4275266d1128d73d02cdd2830",
+    "createdAt": "2025-10-03T12:55:15.392Z",
+    "lastUpdated": "2025-10-03T12:55:46.846Z",
+    "beneficiaries": 0,
+    "tags": [
+      "urgent",
+      "emergency"
+    ],
+    "updates": [
+      {
+        "id": 1759496146846,
+        "title": "IMISSHER",
+        "content": "IMISSHER",
+        "images": [],
+        "createdAt": "2025-10-03T12:55:46.846Z",
+        "type": "general"
+      }
+    ],
+    "milestones": []
+  }
+]

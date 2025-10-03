@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useParams } from "next/navigation"
 import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { 
   ArrowLeft, Heart, MapPin, CheckCircle, ExternalLink, Clock, DollarSign, RefreshCw, FileText, Facebook, Twitter, Users, Calendar, History
 } from "lucide-react"
+import { SafeImage } from "@/components/ui/safe-image"
+import { DonationStorageManager, DonationRecord } from "@/lib/donation-storage"
+import { CampaignDonations } from "@/components/campaign-donations"
 
 interface DonationHistory {
   id: string
@@ -41,7 +45,7 @@ const SUPPORTED_NETWORKS: { [key: number]: NetworkInfo } = {
   80001: { chainId: 80001, name: 'Mumbai Testnet', currency: 'MATIC', explorer: 'https://mumbai.polygonscan.com', rpcUrl: 'https://rpc-mumbai.maticvigil.com/' },
   56: { chainId: 56, name: 'BSC Mainnet', currency: 'BNB', explorer: 'https://bscscan.com', rpcUrl: 'https://bsc-dataseed1.binance.org/' },
   97: { chainId: 97, name: 'BSC Testnet', currency: 'tBNB', explorer: 'https://testnet.bscscan.com', rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545/' },
-  64165: { chainId: 64165, name: 'Sonic Blaze Testnet', currency: 'S', explorer: 'https://blaze.soniclabs.com', rpcUrl: 'https://rpc.blaze.soniclabs.com' }
+  64165: { chainId: 64165, name: 'Sonic Blaze Testnet', currency: 'SONIC', explorer: 'https://blaze.soniclabs.com', rpcUrl: 'https://rpc.blaze.soniclabs.com' }
 }
 
 export default function DonatePage() {
@@ -55,49 +59,66 @@ export default function DonatePage() {
   const [donationData, setDonationData] = useState({ amount: "", message: "", anonymous: false })
   const [step, setStep] = useState(1)
   const [showPopup, setShowPopup] = useState(false)
+  const [campaign, setCampaign] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [campaignDonationsRefresh, setCampaignDonationsRefresh] = useState(0)
+  const txStatusPollingRef = useRef<NodeJS.Timeout | null>(null)
+  const params = useParams()
+  const campaignId = params.id
+  const donationManager = DonationStorageManager.getInstance()
 
-  const ngo = {
-    id: "1",
-    title: "Emergency Relief for Earthquake Victims",
-    description: "Providing immediate shelter, clean water, food supplies, and medical aid to families affected by the earthquake in Cebu region.",
-    ngoName: "Web3 Cebu",
-    location: "Cebu, Philippines",
-    category: "Emergency Relief",
-    targetAmount: 50000,
-    raisedAmount: 37250,
-    donorCount: 412,
-    daysLeft: 8,
-    image: "/earthquake.png",
-    urgent: true,
-    score: 94,
-    email: "relief@pdrf.org.ph",
-    phone: "+63 2 8123 4567",
-    established: "2010",
-    social: {
-      facebook: "https://facebook.com/web3cebu",
-      twitter: "https://twitter.com/web3cebu"
-    },
-    walletAddress: "0x9207C7C3aFDDC7FfD432316972eb6a5cE5aBe45A",
-    //mock
-    impact: [
-      "5,000+ families provided shelter",
-      "10,000+ relief packs distributed",
-      "3 medical outposts established",
-      "20+ tons of clean water delivered"
-    ],
-    updates: [
-      { date: "2 days ago", text: "Successfully delivered 500 relief packs to Bantayan Island" },
-      { date: "5 days ago", text: "Medical team deployed to affected areas in Bohol" },
-      { date: "1 week ago", text: "Emergency shelter construction started in Cebu" }
-    ],
-    reports: [
-      { name: "Impact Assessment Report Q4 2024.pdf", size: "2.4 MB" },
-      { name: "Financial Transparency Report 2024.pdf", size: "1.8 MB" },
-      { name: "Relief Distribution Plan.pdf", size: "956 KB" }
-    ]
-  }
+  // Fetch campaign data from API
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      try {
+        const response = await fetch('/api/ngo/campaigns')
+        const result = await response.json()
+        if (result.success) {
+          // Find the campaign by ID
+          const foundCampaign = result.campaigns.find((c: any) => c.id.toString() === campaignId)
+          if (foundCampaign) {
+            setCampaign(foundCampaign)
+          } else {
+            console.error('Campaign not found')
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching campaign:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const progressPercentage = (ngo.raisedAmount / ngo.targetAmount) * 100
+    if (campaignId) {
+      fetchCampaign()
+    }
+  }, [campaignId])
+
+  // Cleanup polling on component unmount - MUST be before early returns
+  useEffect(() => {
+    return () => {
+      if (txStatusPollingRef.current) {
+        clearInterval(txStatusPollingRef.current)
+        txStatusPollingRef.current = null
+      }
+    }
+  }, [])
+
+  // Auto-refresh personal donations when wallet connected
+  useEffect(() => {
+    if (walletConnected && userAddress) {
+      const interval = setInterval(() => {
+        loadDonationHistory(userAddress)
+      }, 10000) // Refresh every 10 seconds
+      
+      return () => clearInterval(interval)
+    }
+  }, [walletConnected, userAddress])
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading campaign...</div>
+  if (!campaign) return <div className="min-h-screen flex items-center justify-center">Campaign not found</div>
+
+  const progressPercentage = ((campaign.raisedAmount || campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100
 
   const detectNetwork = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -105,8 +126,17 @@ export default function DonatePage() {
         const provider = new ethers.BrowserProvider((window as any).ethereum)
         const network = await provider.getNetwork()
         const networkInfo = SUPPORTED_NETWORKS[Number(network.chainId)]
-        if (networkInfo) setCurrentNetwork(networkInfo)
-      } catch (error) { console.error(error) }
+        if (networkInfo) {
+          setCurrentNetwork(networkInfo)
+        } else {
+          // Default to Sonic Blaze if network not supported
+          setCurrentNetwork(SUPPORTED_NETWORKS[64165])
+        }
+      } catch (error) { 
+        console.error(error)
+        // Fallback to Sonic Blaze on error
+        setCurrentNetwork(SUPPORTED_NETWORKS[64165])
+      }
     }
   }
 
@@ -180,19 +210,42 @@ export default function DonatePage() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
       const tx = await signer.sendTransaction({ 
-        to: ethers.getAddress(ngo.walletAddress), 
+        to: ethers.getAddress(campaign.walletAddress), 
         value: ethers.parseEther(donationData.amount || "0") 
       })
       setTxHash(tx.hash)
       
+      // Create donation record for campaign transparency
+      const donationRecord: DonationRecord = {
+        id: `${Date.now()}_${tx.hash}`,
+        campaignId: campaignId as string,
+        txHash: tx.hash,
+        amount: donationData.amount,
+        currency: currentNetwork?.currency || "SONIC",
+        timestamp: new Date(),
+        status: "pending",
+        explorerUrl: `${currentNetwork?.explorer || 'https://blaze.soniclabs.com'}/tx/${tx.hash}`,
+        donorAddress: userAddress,
+        message: donationData.message,
+        anonymous: donationData.anonymous,
+        networkName: currentNetwork?.name || 'Sonic Blaze Testnet'
+      }
+      
+      // Save to campaign donations for transparency
+      await donationManager.saveDonationRecord(donationRecord)
+      
+      // Trigger campaign donations refresh
+      setCampaignDonationsRefresh(prev => prev + 1)
+      
+      // Also keep personal history
       const newDonation: DonationHistory = { 
         id: Date.now().toString(), 
         txHash: tx.hash, 
         amount: donationData.amount, 
-        currency: currentNetwork?.currency || "ETH", 
+        currency: currentNetwork?.currency || "SONIC", 
         timestamp: new Date(), 
         status: "pending", 
-        explorerUrl: `${currentNetwork?.explorer}/tx/${tx.hash}` 
+        explorerUrl: `${currentNetwork?.explorer || 'https://blaze.soniclabs.com'}/tx/${tx.hash}` 
       }
       
       const updatedHistory = [newDonation, ...donationHistory]
@@ -201,15 +254,8 @@ export default function DonatePage() {
       
       setStep(3)
       
-      // Wait for transaction confirmation and update status
-      const receipt = await tx.wait()
-      const updatedHistoryWithConfirmation = donationHistory.map(d => 
-        d.txHash === tx.hash && receipt
-          ? { ...d, status: 'confirmed' as const, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed.toString() }
-          : d
-      )
-      setDonationHistory(updatedHistoryWithConfirmation)
-      saveDonationHistory(userAddress, updatedHistoryWithConfirmation)
+      // Start real-time status polling
+      startTransactionPolling(tx.hash, campaignId as string)
       
       setShowPopup(true)
     } catch (e: any) { 
@@ -225,6 +271,77 @@ export default function DonatePage() {
     setStep(1)
     setDonationData({ amount: "", message: "", anonymous: false })
     setTxHash("")
+  }
+
+  // Real-time transaction status polling
+  const startTransactionPolling = (txHash: string, campaignId: string) => {
+    // Clear existing polling
+    if (txStatusPollingRef.current) {
+      clearInterval(txStatusPollingRef.current)
+    }
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        if (!window.ethereum) return
+        
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const receipt = await provider.getTransactionReceipt(txHash)
+        
+        if (receipt) {
+          // Transaction confirmed - update both storages
+          const confirmationData = {
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed.toString(),
+            confirmationTime: new Date()
+          }
+          
+          // Update campaign donation record
+          await donationManager.updateDonationStatus(
+            campaignId,
+            txHash,
+            receipt.status === 1 ? 'confirmed' : 'failed',
+            confirmationData
+          )
+          
+          // Trigger campaign donations refresh
+          setCampaignDonationsRefresh(prev => prev + 1)
+          
+          // Update personal history
+          const updatedHistory = donationHistory.map(d => 
+            d.txHash === txHash
+              ? { 
+                  ...d, 
+                  status: receipt.status === 1 ? 'confirmed' as const : 'failed' as const,
+                  blockNumber: receipt.blockNumber,
+                  gasUsed: receipt.gasUsed.toString()
+                }
+              : d
+          )
+          setDonationHistory(updatedHistory)
+          saveDonationHistory(userAddress, updatedHistory)
+          
+          // Clear polling
+          if (txStatusPollingRef.current) {
+            clearInterval(txStatusPollingRef.current)
+            txStatusPollingRef.current = null
+          }
+          
+          console.log(`Transaction ${txHash} confirmed in block ${receipt.blockNumber}`)
+        }
+      } catch (error) {
+        console.error('Error polling transaction status:', error)
+      }
+    }, 3000) // Poll every 3 seconds
+    
+    txStatusPollingRef.current = pollInterval
+    
+    // Clear polling after 10 minutes to prevent infinite polling
+    setTimeout(() => {
+      if (txStatusPollingRef.current) {
+        clearInterval(txStatusPollingRef.current)
+        txStatusPollingRef.current = null
+      }
+    }, 600000)
   }
 
   const handleBack = () => {
@@ -245,8 +362,8 @@ export default function DonatePage() {
           {walletConnected ? (
             <div className="flex items-center space-x-3">
               <div className="text-right">
-                <div className="text-xs text-gray-500">{currentNetwork?.name || 'Connected'}</div>
-                <div className="text-sm font-semibold">{balance} {currentNetwork?.currency}</div>
+                <div className="text-xs text-gray-500">{currentNetwork?.name || 'Sonic Network'}</div>
+                <div className="text-sm font-semibold">{balance} {currentNetwork?.currency || 'SONIC'}</div>
               </div>
               <Badge variant="secondary" className="font-mono">
                 {userAddress.slice(0,6)}...{userAddress.slice(-4)}
@@ -262,34 +379,34 @@ export default function DonatePage() {
 
       {/* Hero Section */}
       <div className="relative h-96 w-full bg-gray-900">
-        <img 
-          src={ngo.image} 
-          alt={ngo.title} 
+        <SafeImage
+          src={campaign.imageUrl || campaign.image}
+          alt={campaign.title || campaign.name || "Campaign"}
           className="absolute w-full h-full object-cover opacity-70"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8">
           <div className="container mx-auto">
             <div className="max-w-3xl">
-              {ngo.urgent && (
+              {(campaign.urgencyLevel === 'urgent' || campaign.urgent) && (
                 <Badge variant="destructive" className="mb-3 animate-pulse">
                   🚨 URGENT RELIEF NEEDED
                 </Badge>
               )}
-              <h1 className="text-4xl font-bold text-white mb-3">{ngo.title}</h1>
-              <p className="text-lg text-gray-200 mb-4">{ngo.description}</p>
+              <h1 className="text-4xl font-bold text-white mb-3">{campaign.title || campaign.name}</h1>
+              <p className="text-lg text-gray-200 mb-4">{campaign.longDescription || campaign.description}</p>
               <div className="flex flex-wrap gap-3 text-sm text-gray-300">
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-1" />
-                  {ngo.location}
+                  {campaign.location || "Philippines"}
                 </div>
                 <div className="flex items-center">
                   <Users className="w-4 h-4 mr-1" />
-                  {ngo.donorCount} donors
+                  {campaign.donorCount || 0} donors
                 </div>
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1" />
-                  {ngo.daysLeft} days left
+                  Created {new Date(campaign.createdAt).toLocaleDateString()}
                 </div>
               </div>
             </div>
@@ -307,16 +424,16 @@ export default function DonatePage() {
                 <div className="mb-4">
                   <div className="flex justify-between items-baseline mb-2">
                     <span className="text-3xl font-bold text-green-600">
-                      ${ngo.raisedAmount.toLocaleString()}
+                      {(campaign.raisedAmount || campaign.currentAmount || 0).toLocaleString()} SONIC
                     </span>
                     <span className="text-gray-600">
-                      of ${ngo.targetAmount.toLocaleString()} goal
+                      of {(campaign.targetAmount || 0).toLocaleString()} SONIC goal
                     </span>
                   </div>
                   <Progress value={progressPercentage} className="h-3" />
                   <div className="flex justify-between mt-2 text-sm text-gray-500">
                     <span>{Math.round(progressPercentage)}% funded</span>
-                    <span>${(ngo.targetAmount - ngo.raisedAmount).toLocaleString()} remaining</span>
+                    <span>{((campaign.targetAmount || 0) - (campaign.raisedAmount || campaign.currentAmount || 0)).toLocaleString()} SONIC remaining</span>
                   </div>
                 </div>
               </CardContent>
@@ -329,12 +446,27 @@ export default function DonatePage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {ngo.impact.map((item, idx) => (
-                    <div key={idx} className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
+                  {campaign.beneficiaries > 0 && (
+                    <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
                       <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{item}</span>
+                      <span className="text-sm">{campaign.beneficiaries.toLocaleString()} people to help</span>
+                    </div>
+                  )}
+                  <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Organized by {campaign.ngoName}</span>
+                  </div>
+                  {campaign.tags && campaign.tags.length > 0 && campaign.tags.map((tag: string, idx: number) => (
+                    <div key={idx} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm capitalize">{tag} initiative</span>
                     </div>
                   ))}
+                  {(!campaign.tags || campaign.tags.length === 0) && campaign.beneficiaries === 0 && (
+                    <div className="col-span-2 text-center text-gray-500 py-4">
+                      <span className="text-sm">Campaign details will be updated by the NGO</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -346,12 +478,21 @@ export default function DonatePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {ngo.updates.map((update, idx) => (
-                    <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
-                      <div className="text-xs text-gray-500 mb-1">{update.date}</div>
-                      <div className="text-sm">{update.text}</div>
+                  {campaign.updates && campaign.updates.length > 0 ? (
+                    campaign.updates.slice(0, 3).map((update: any, idx: number) => (
+                      <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {new Date(update.date || update.createdAt).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm font-medium mb-1">{update.title}</div>
+                        <div className="text-sm text-gray-600">{update.content}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <span className="text-sm">No updates yet. The NGO will post progress updates here.</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -365,35 +506,38 @@ export default function DonatePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {ngo.reports.map((report, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <div className="text-sm font-medium">{report.name}</div>
-                        <div className="text-xs text-gray-500">{report.size}</div>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                {/* Show placeholder for now - reports will be added later */}
+                <div className="text-center text-gray-500 py-8">
+                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No reports uploaded yet</p>
+                  <p className="text-xs mt-1">
+                    The NGO will upload transparency reports and documentation here
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Real-Time Donation History */}
+            {/* Campaign Donations Transparency - Always Visible */}
+            <CampaignDonations 
+              campaignId={campaignId as string} 
+              refreshKey={campaignDonationsRefresh}
+            />
+
+            {/* Personal Donation History */}
             {walletConnected && (
               <Card>
                 <CardHeader className="flex flex-row justify-between items-center">
                   <CardTitle className="flex items-center">
                     <History className="w-5 h-5 mr-2" />
-                    Your Donation History
+                    Your Personal History ({donationHistory.length})
                   </CardTitle>
                   <Button 
                     size="sm" 
                     variant="ghost"
-                    onClick={() => loadDonationHistory(userAddress)}
+                    onClick={() => {
+                      loadDonationHistory(userAddress)
+                      setCampaignDonationsRefresh(prev => prev + 1)
+                    }}
                   >
                     <RefreshCw className="w-4 h-4" />
                   </Button>
@@ -402,15 +546,20 @@ export default function DonatePage() {
                   {donationHistory.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <Heart className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm font-medium">No donations yet</p>
-                      <p className="text-xs mt-1">Your donation history will appear here</p>
-                      <p className="text-xs text-gray-400 mt-2">Stored locally for transparency</p>
+                      <p className="text-sm font-medium">No personal donations yet</p>
+                      <p className="text-xs mt-1">Your personal donation history will appear here</p>
+                      <p className="text-xs text-gray-400 mt-2">All donations are also shown in campaign transparency above</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="text-xs text-gray-500 mb-2 flex items-center">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Verified on-chain • Stored locally
+                      <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Personal wallet history • Real-time status updates
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Last updated: {new Date().toLocaleTimeString()}
+                        </div>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -432,12 +581,21 @@ export default function DonatePage() {
                                   </div>
                                 </td>
                                 <td className="p-3">
-                                  <Badge 
-                                    variant={d.status === 'confirmed' ? 'default' : d.status === 'pending' ? 'secondary' : 'destructive'}
-                                    className="text-xs"
-                                  >
-                                    {d.status === 'confirmed' ? '✓ Confirmed' : d.status === 'pending' ? '⏳ Pending' : '✗ Failed'}
-                                  </Badge>
+                                  <div className="space-y-1">
+                                    <Badge 
+                                      variant={d.status === 'confirmed' ? 'default' : d.status === 'pending' ? 'secondary' : 'destructive'}
+                                      className="text-xs flex items-center gap-1"
+                                    >
+                                      {d.status === 'confirmed' && <CheckCircle className="w-3 h-3" />}
+                                      {d.status === 'pending' && <Clock className="w-3 h-3 animate-pulse" />}
+                                      {d.status === 'confirmed' ? 'Confirmed' : d.status === 'pending' ? 'Processing...' : 'Failed'}
+                                    </Badge>
+                                    {d.status === 'pending' && (
+                                      <div className="text-xs text-orange-600 animate-pulse">
+                                        Awaiting confirmation...
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="p-3">
                                   <div className="text-xs">
@@ -491,7 +649,7 @@ export default function DonatePage() {
                   <>
                     <div>
                       <Label className="text-base mb-2 block">
-                        Donation Amount ({currentNetwork?.currency || 'ETH'})
+                        Donation Amount ({currentNetwork?.currency || 'SONIC'})
                       </Label>
                       <Input 
                         type="number" 
@@ -509,7 +667,7 @@ export default function DonatePage() {
                             size="sm"
                             onClick={() => setDonationData({...donationData, amount: amt})}
                           >
-                            {amt} {currentNetwork?.currency || 'ETH'}
+                            {amt} {currentNetwork?.currency || 'SONIC'}
                           </Button>
                         ))}
                       </div>
@@ -555,7 +713,7 @@ export default function DonatePage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">To:</span>
-                        <span className="font-semibold">{ngo.ngoName}</span>
+                        <span className="font-semibold">{campaign.ngoName}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Network:</span>
@@ -594,33 +752,28 @@ export default function DonatePage() {
             {/* Organization Info */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">About {ngo.ngoName}</CardTitle>
+                <CardTitle className="text-base">About {campaign.ngoName}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Trust Score</span>
+                  <span className="text-gray-600">Campaign Status</span>
                   <Badge variant="default" className="bg-green-600">
-                    {ngo.score}/100
+                    {campaign.status || 'Active'}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Established</span>
-                  <span className="font-medium">{ngo.established}</span>
+                  <span className="text-gray-600">Created</span>
+                  <span className="font-medium">{new Date(campaign.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="pt-3 border-t">
-                  <div className="text-gray-600 mb-2">Contact</div>
+                  <div className="text-gray-600 mb-2">Category</div>
                   <div className="space-y-1 text-xs">
-                    <div>{ngo.email}</div>
-                    <div>{ngo.phone}</div>
+                    <div>{campaign.category || 'Emergency Relief'}</div>
+                    <div>Wallet: {campaign.walletAddress?.slice(0, 10)}...{campaign.walletAddress?.slice(-8)}</div>
                   </div>
                 </div>
-                <div className="flex space-x-3 pt-2">
-                  <a href={ngo.social.facebook} target="_blank" rel="noopener noreferrer">
-                    <Facebook className="w-5 h-5 text-blue-600 hover:text-blue-700 cursor-pointer" />
-                  </a>
-                  <a href={ngo.social.twitter} target="_blank" rel="noopener noreferrer">
-                    <Twitter className="w-5 h-5 text-blue-400 hover:text-blue-500 cursor-pointer" />
-                  </a>
+                <div className="pt-2">
+                  <div className="text-xs text-gray-500">Managed by {campaign.ngoName}</div>
                 </div>
               </CardContent>
             </Card>
@@ -645,7 +798,7 @@ export default function DonatePage() {
               </p>
               <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200 mb-3">
                 <div className="text-2xl font-bold text-green-700">
-                  {donationData.amount} {currentNetwork?.currency}
+                  {donationData.amount} {currentNetwork?.currency || 'SONIC'}
                 </div>
               </div>
               <p className="text-sm text-gray-600">

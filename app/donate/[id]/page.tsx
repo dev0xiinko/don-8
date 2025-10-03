@@ -24,6 +24,7 @@ import {
   TrendingUp,
   CheckCircle,
 } from "lucide-react"
+import { DonorCampaignUpdates } from "@/components/donor-campaign-updates"
 
 export default function DonatePage() {
   const params = useParams()
@@ -35,32 +36,41 @@ export default function DonatePage() {
   const [txHash, setTxHash] = useState<string>("")
   const [donationData, setDonationData] = useState({
     amount: "",
-    currency: "ETH",
+    currency: "SONIC",
     message: "",
     anonymous: false,
     recurring: false,
   })
   const [step, setStep] = useState(1)
 
-  // ✅ Mock NGO data (replace with API later)
-  const [ngo, setNgo] = useState<any>(null)
+  // Fetch campaign data from API
+  const [campaign, setCampaign] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setNgo({
-      id: ngoId,
-      name: "Emergency Relief for Flood Victims",
-      description: "Providing immediate shelter, food, and medical aid to families affected by recent flooding in rural communities.",
-      category: "Emergency Relief",
-      location: "Philippines",
-      score: 95,
-      totalRaised: 125000,
-      goal: 200000,
-      donors: 1250,
-      image: "/flood.png",
-      verified: true,
-      lastUpdate: "2 days ago",
-      walletAddress: "0x742d35Cc6634C0532925a3b8D4C0C8b3C2e1e416",
-    })
+    const fetchCampaign = async () => {
+      try {
+        const response = await fetch('/api/ngo/campaigns')
+        const result = await response.json()
+        if (result.success) {
+          // Find the campaign by ID
+          const foundCampaign = result.campaigns.find((c: any) => c.id.toString() === ngoId)
+          if (foundCampaign) {
+            setCampaign(foundCampaign)
+          } else {
+            console.error('Campaign not found')
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching campaign:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (ngoId) {
+      fetchCampaign()
+    }
   }, [ngoId])
 
   // ✅ Detect if wallet is already connected
@@ -135,7 +145,7 @@ export default function DonatePage() {
       const signer = await provider.getSigner()
 
       const tx = await signer.sendTransaction({
-        to: ngo.walletAddress,
+        to: campaign.walletAddress,
         value: ethers.parseEther(donationData.amount || "0"),
       })
 
@@ -151,9 +161,10 @@ export default function DonatePage() {
     }
   }
 
-  if (!ngo) return <p>Loading campaign...</p>
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading campaign...</div>
+  if (!campaign) return <div className="min-h-screen flex items-center justify-center">Campaign not found</div>
 
-  const progressPercentage = (ngo.totalRaised / ngo.goal) * 100
+  const progressPercentage = ((campaign.raisedAmount || campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,7 +181,7 @@ export default function DonatePage() {
                 <Badge variant="secondary">
                   {userAddress.substring(0, 6)}...{userAddress.slice(-4)}
                 </Badge>
-                <span className="text-sm font-medium text-gray-700">Balance: {balance} ETH</span>
+                <span className="text-sm font-medium text-gray-700">Balance: {balance} SONIC</span>
               </>
             ) : (
               <Button onClick={connectWallet} className="bg-blue-600 text-white">
@@ -189,34 +200,34 @@ export default function DonatePage() {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage src={ngo.image || "/placeholder.svg"} />
-                    <AvatarFallback>{ngo.name.substring(0, 2)}</AvatarFallback>
+                                    <Avatar className="h-16 w-16">
+                    <AvatarImage src={campaign.imageUrl || campaign.image || "/placeholder.svg"} />
+                    <AvatarFallback>{(campaign.title || campaign.name)?.substring(0, 2) || "CA"}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h1 className="text-2xl font-bold">{ngo.name}</h1>
-                      {ngo.verified && (
-                        <Badge variant="secondary" className="flex items-center space-x-1">
-                          <Star className="w-3 h-3" />
-                          <span>Verified</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-2xl font-bold">{campaign.title || campaign.name}</h1>
+                      {campaign.status === 'active' && (
+                        <Badge className="bg-green-100 text-green-800">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Active
                         </Badge>
                       )}
-                      <Badge variant="outline">Score: {ngo.score}</Badge>
+                      <Badge variant="outline">By: {campaign.ngoName}</Badge>
                     </div>
-                    <p className="text-gray-600 mb-4">{ngo.description}</p>
+                    <p className="text-gray-600 mb-4">{campaign.longDescription || campaign.description}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center">
                         <MapPin className="w-4 h-4 mr-1" />
-                        {ngo.location}
+                        {campaign.location || "Philippines"}
                       </div>
                       <div className="flex items-center">
                         <Users className="w-4 h-4 mr-1" />
-                        {ngo.donors} donors
+                        {campaign.donorCount || 0} donors
                       </div>
                       <div className="flex items-center">
                         <TrendingUp className="w-4 h-4 mr-1" />
-                        Updated {ngo.lastUpdate}
+                        Created {new Date(campaign.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
@@ -238,13 +249,16 @@ export default function DonatePage() {
                     </div>
                     <Progress value={progressPercentage} className="h-3" />
                     <div className="flex justify-between text-sm text-gray-500 mt-2">
-                      <span>${ngo.totalRaised.toLocaleString()} raised</span>
-                      <span>Goal: ${ngo.goal.toLocaleString()}</span>
+                      <span>{(campaign.raisedAmount || campaign.currentAmount || 0).toLocaleString()} SONIC raised</span>
+                      <span>Goal: {(campaign.targetAmount || 0).toLocaleString()} SONIC</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Campaign Updates */}
+            <DonorCampaignUpdates campaign={campaign} />
             
           </div>
           
@@ -280,11 +294,11 @@ export default function DonatePage() {
                     <h4 className="font-medium">Donation Summary</h4>
                     <div className="flex justify-between text-sm">
                       <span>Amount:</span>
-                      <span>{donationData.amount} ETH</span>
+                      <span>{donationData.amount} SONIC</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Recipient:</span>
-                      <span className="font-mono text-xs">{ngo.walletAddress}</span>
+                      <span className="font-mono text-xs">{campaign.walletAddress}</span>
                     </div>
                   </div>
                 )}
@@ -294,7 +308,7 @@ export default function DonatePage() {
                     <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
                     <h4 className="text-lg font-semibold">Donation Confirmed!</h4>
                     <p className="text-sm text-gray-600">
-                      Your donation of {donationData.amount} ETH has been successfully processed.
+                      Your donation of {donationData.amount} SONIC has been successfully processed.
                     </p>
                     {txHash && (
                       <div className="bg-gray-50 p-3 rounded-lg">

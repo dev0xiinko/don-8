@@ -135,11 +135,11 @@ export default function CampaignsPage() {
   const { redirectToDonate } = useAuthRedirect()
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
+    if (!amount || isNaN(amount)) return '0 SONIC'
+    return `${new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 0,
-    }).format(amount)
+      maximumFractionDigits: 0,
+    }).format(amount)} SONIC`
   }
 
   const calculateProgress = (raised: number, target: number) => {
