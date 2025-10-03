@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/themes/theme-toggle"
+import HealthStatus from "@/components/health-status"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import dynamic from "next/dynamic"
@@ -78,6 +79,7 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex items-center space-x-3">
+          <HealthStatus className="hidden sm:flex" showDetails={false} />
           <ThemeToggle />
           {typeof window !== "undefined" && !window.ethereum ? (
             <div className="ml-2">

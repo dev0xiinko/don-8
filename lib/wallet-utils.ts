@@ -1,4 +1,4 @@
-import { ethers } from "ethers"
+import { ethers, BrowserProvider, formatEther } from "ethers";
 import type { WalletInfo } from "@/types/wallet"
 
 // MetaMask utilities
@@ -8,36 +8,39 @@ export const isMetaMaskInstalled = (): boolean => {
 
 export const connectMetaMask = async (): Promise<WalletInfo> => {
   if (!isMetaMaskInstalled()) {
-    throw new Error("MetaMask is not installed. Please install MetaMask to continue.")
+    throw new Error("MetaMask is not installed. Please install MetaMask to continue.");
   }
 
   try {
     // Request account access
     const accounts = await window.ethereum!.request({
       method: "eth_requestAccounts",
-    })
+    });
 
     if (!accounts || accounts.length === 0) {
-      throw new Error("No accounts found. Please unlock MetaMask.")
+      throw new Error("No accounts found. Please unlock MetaMask.");
     }
 
-    // Create provider and get wallet info
-    const provider = new ethers.BrowserProvider(window.ethereum!)
-    const signer = await provider.getSigner()
-    const address = await signer.getAddress()
-    const balance = await provider.getBalance(address)
-    const network = await provider.getNetwork()
+    // Create provider using ethers v6
+    const provider = new BrowserProvider(window.ethereum!);
+    const signer = await provider.getSigner();
+    const address = await signer.getAddress();
+    const balance = await provider.getBalance(address);
+    const network = await provider.getNetwork();
+
+    // Format balance using ethers v6
+    const formattedBalance = formatEther(balance);
 
     return {
       address,
-      balance: ethers.formatEther(balance),
+      balance: formattedBalance,
       chainId: network.chainId.toString(),
       network: network.name,
       walletType: "metamask",
-    }
+    };
   } catch (error: any) {
-    console.error("MetaMask connection error:", error)
-    throw new Error(error.message || "Failed to connect to MetaMask")
+    console.error("MetaMask connection error:", error);
+    throw new Error(error.message || "Failed to connect to MetaMask");
   }
 }
 

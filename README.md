@@ -1,31 +1,32 @@
-# 🏗️ Don-8 Developer Guide – Branch Notes
+# � DON-8 - Transparent Blockchain Donations Platform
 
-Welcome to the **Don-8 Dev Guide** for this branch.  
-This document contains setup instructions, pending tasks, the NGO Application process flow, API endpoints, environment variables, sample payloads, and contribution guidelines.  
+## 🚀 **v2.1.0 - Backend Integration & Health Monitoring Update**
 
----
-
-## 📌 Project Overview  
-
-The Don-8 platform connects NGOs and donors through a transparent and efficient donation management system.  
-This branch focuses on:  
-- NGO **application handling**  
-- NGO **authentication**  
-- Admin **review process**  
-- Status **tracking of NGO applications**  
+A revolutionary blockchain-powered donation platform with **real-time backend integration**, comprehensive **health monitoring**, and seamless **API connectivity**.
 
 ---
 
-✅ Pending Tasks
+## 📌 **What's New in This Update**
 
-- Wire NGO Application to Backend
-POST /register
-- Implement NGO Authentication
-POST /ngol/login
-- Fetch NGO Applications for Review in Admin Dashboard
-GET /admin/dashboard
-- Integrate Status Tracking
-GET /ngo-application/:id/status
+### ✅ **Completed Features**
+- ✅ **Full Backend Integration** - Complete API layer with NestJS backend
+- ✅ **Real-time Health Monitoring** - Visual connection status indicators
+- ✅ **Authentication System** - User signup, login, and token management
+- ✅ **Organization Management** - CRUD operations for NGOs
+- ✅ **NGO Application Workflow** - Complete application and approval process
+- ✅ **Donation Drive Management** - Campaign creation and management
+- ✅ **CORS-enabled Communication** - Seamless frontend-backend connectivity
+- ✅ **TypeScript Integration** - Full type safety across the application
+- ✅ **Health Dashboard** - Comprehensive system status monitoring
+- ✅ **Error Handling** - Robust error management and user feedback
+
+### 🎯 **Core Features**
+- **Transparent Donations**: Blockchain-based transaction tracking
+- **NGO Verification**: Multi-step application and approval process  
+- **Real-time Monitoring**: Live backend connectivity status
+- **Responsive Design**: Mobile-friendly interface with health indicators
+- **Secure Authentication**: JWT-based user management
+- **Performance Metrics**: Response time tracking and monitoring
 
 
 📂 NGO Application Process

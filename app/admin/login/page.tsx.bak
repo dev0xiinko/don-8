@@ -1,0 +1,185 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Shield, Eye, EyeOff, Loader2 } from "lucide-react"
+
+export default function AdminLogin() {
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Login failed");
+      }
+
+      const data = await response.json();
+      const adminSession = {
+        id: data.id,
+        email: data.email,
+        role: "admin",
+        token: data.token,
+        loginTime: new Date().toISOString(),
+      };
+
+      // Store session in localStorage
+      localStorage.setItem("admin_session", JSON.stringify(adminSession));
+
+      // Redirect to dashboard
+      router.push("/admin/dashboard");
+
+  const handleSocialProvider = async (provider: "google" | "github" | "twitter") => {
+    setSocialLoading(true)
+    setError("")
+
+    try {
+      // Simulate OAuth flow
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Mock admin authentication via social provider
+      const adminSession = {
+        id: `admin_${provider}_001`,
+        email: `admin@${provider}.com`,
+        role: "admin",
+        loginTime: new Date().toISOString(),
+        authType: provider,
+      }
+
+      localStorage.setItem("admin_session", JSON.stringify(adminSession))
+      document.cookie = `admin_session=${JSON.stringify(adminSession)}; path=/; max-age=86400`
+
+      router.push("/admin/dashboard")
+    } catch (error) {
+      setError(`Failed to login with ${provider}. Please try again.`)
+    } finally {
+      setSocialLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="flex justify-center">
+            <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
+              <Shield className="text-white w-6 h-6" />
+            </div>
+          </div>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">Admin Login</h2>
+          <p className="mt-2 text-sm text-gray-600">Sign in to access the DON-8 admin panel</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Administrator Access</CardTitle>
+            <CardDescription>Choose your preferred authentication method</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Error Message */}
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Tabs defaultValue="credentials" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="credentials">Admin Credentials</TabsTrigger>
+                <TabsTrigger value="social">Social Login</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="credentials" className="space-y-6 mt-6">
+                          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+              </TabsContent>
+
+              <TabsContent value="social" className="space-y-4 mt-6">
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-12 bg-transparent"
+                    onClick={() => handleSocialProvider("google")}
+                    disabled={socialLoading}
+                  >
+                    {socialLoading ? (
+                      <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                    ) : (
+                      <Chrome className="w-5 h-5 mr-3" />
+                    )}
+                    Continue with Google
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-12 bg-transparent"
+                    onClick={() => handleSocialProvider("github")}
+                    disabled={socialLoading}
+                  >
+                    {socialLoading ? (
+                      <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                    ) : (
+                      <Github className="w-5 h-5 mr-3" />
+                    )}
+                    Continue with GitHub
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-12 bg-transparent"
+                    onClick={() => handleSocialProvider("twitter")}
+                    disabled={socialLoading}
+                  >
+                    {socialLoading ? (
+                      <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                    ) : (
+                      <Twitter className="w-5 h-5 mr-3" />
+                    )}
+                    Continue with Twitter
+                  </Button>
+                </div>
+
+                <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium mb-1">Admin Social Login</p>
+                    <p>Social login for admin accounts requires additional verification and approval.</p>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        <div className="text-center">
+          <p className="text-xs text-gray-500">This is a secure admin area. Unauthorized access is prohibited.</p>
+        </div>
+      </div>
+    </div>
+  )
+}

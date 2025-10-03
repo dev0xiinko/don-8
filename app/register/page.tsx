@@ -86,13 +86,62 @@ export default function RegisterPage() {
       return;
     }
 
+    // Basic validation
+    if (!formData.name || !formData.email || !formData.description || !formData.category) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    if (!formData.agreeTerms) {
+      alert("Please agree to the terms and conditions.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      sessionStorage.setItem("ngoProfile", JSON.stringify(formData));
+      console.log("Submitting NGO application:", formData);
+      
+      const response = await fetch("/api/ngo-application/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          description: formData.description,
+          website: formData.website,
+          category: formData.category,
+          agreeTerms: formData.agreeTerms,
+          registrationNumber: formData.registrationNumber,
+          foundedYear: formData.foundedYear,
+          teamSize: formData.teamSize,
+          twitter: formData.twitter,
+          facebook: formData.facebook,
+          linkedin: formData.linkedin,
+          walletAddress: formData.walletAddress
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to submit application");
+      }
+
+      console.log("Application submitted successfully:", result);
+      
+      // Store in sessionStorage for confirmation page
+      sessionStorage.setItem("ngoProfile", JSON.stringify({
+        ...formData,
+        applicationId: result.applicationId
+      }));
+      
       setSubmitted(true);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to submit application.");
+    } catch (err: any) {
+      console.error("Application submission error:", err);
+      alert(`Failed to submit application: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
