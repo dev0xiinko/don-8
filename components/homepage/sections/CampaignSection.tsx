@@ -23,7 +23,7 @@ export function CampaignsSection() {
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'PHP',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount)
@@ -165,7 +165,7 @@ export function CampaignsSection() {
                   className="w-full bg-emerald-600 hover:bg-emerald-700 group"
                   onClick={() => redirectToDonate(campaign.id)}
                 >
-                  Donate Now
+                  Visit Campaign
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>

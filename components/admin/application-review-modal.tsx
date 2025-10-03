@@ -30,6 +30,7 @@ import {
   Hash,
   CreditCard,
 } from "lucide-react"
+
 import type { NGOApplication } from "@/hooks/useAdmin"
 
 interface ApplicationReviewModalProps {
@@ -118,18 +119,19 @@ export function ApplicationReviewModal({
             <div className="flex items-center space-x-2">
               {getStatusIcon(application.status)}
               <span className="font-medium">Current Status:</span>
-              <Badge className={getStatusColor(application.status)}>{application.status.replace("_", " ")}</Badge>
+              <Badge className={getStatusColor(application.status)}>
+                {application.status.replace("_", " ")}
+              </Badge>
             </div>
             <div className="text-sm text-gray-600">
-              Submitted: {new Date(application.submittedAt).toLocaleDateString()}
+              Submitted: {new Date(application.createdAt).toLocaleDateString()}
             </div>
           </div>
 
-          {/* Organization Details */}
+          {/* Organization & Contact */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Organization Information</h3>
-
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
                   <Building2 className="w-4 h-4 mt-1 text-gray-500" />
@@ -144,22 +146,6 @@ export function ApplicationReviewModal({
                   <div>
                     <div className="font-medium">{application.email}</div>
                     <div className="text-sm text-gray-600">Email Address</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <Phone className="w-4 h-4 mt-1 text-gray-500" />
-                  <div>
-                    <div className="font-medium">{application.phone}</div>
-                    <div className="text-sm text-gray-600">Phone Number</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <MapPin className="w-4 h-4 mt-1 text-gray-500" />
-                  <div>
-                    <div className="font-medium">{application.location}</div>
-                    <div className="text-sm text-gray-600">Location</div>
                   </div>
                 </div>
 
@@ -184,17 +170,8 @@ export function ApplicationReviewModal({
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Contact & Legal</h3>
-
+              <h3 className="text-lg font-semibold">Legal & Wallet</h3>
               <div className="space-y-3">
-                <div className="flex items-start space-x-3">
-                  <Building2 className="w-4 h-4 mt-1 text-gray-500" />
-                  <div>
-                    <div className="font-medium">{application.contactPerson}</div>
-                    <div className="text-sm text-gray-600">Contact Person</div>
-                  </div>
-                </div>
-
                 {application.registrationNumber && (
                   <div className="flex items-start space-x-3">
                     <Hash className="w-4 h-4 mt-1 text-gray-500" />
@@ -205,15 +182,7 @@ export function ApplicationReviewModal({
                   </div>
                 )}
 
-                {application.taxId && (
-                  <div className="flex items-start space-x-3">
-                    <CreditCard className="w-4 h-4 mt-1 text-gray-500" />
-                    <div>
-                      <div className="font-medium">{application.taxId}</div>
-                      <div className="text-sm text-gray-600">Tax ID</div>
-                    </div>
-                  </div>
-                )}
+                
 
                 <div className="flex items-start space-x-3">
                   <div className="w-4 h-4 mt-1 text-gray-500 font-mono text-xs">#</div>
@@ -242,52 +211,37 @@ export function ApplicationReviewModal({
             </Badge>
           </div>
 
-          {/* Documents */}
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Submitted Documents</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {application.documents.map((doc, index) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium">{doc}</span>
-                  <ExternalLink className="w-3 h-3 text-gray-400 ml-auto" />
-                </div>
-              ))}
-            </div>
-          </div>
+         
 
           {/* Social Media */}
-          {application.socialMedia && (
+          {application && (
             <div>
               <h3 className="text-lg font-semibold mb-2">Social Media</h3>
               <div className="space-y-2">
-                {application.socialMedia.facebook && (
+                {application.facebook && (
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium">Facebook:</span>
                     <a
-                      href={application.socialMedia.facebook}
+                      href={application.facebook}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1"
                     >
-                      <span>{application.socialMedia.facebook}</span>
+                      <span>{application.facebook}</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 )}
-                {application.socialMedia.twitter && (
+                {application.twitter && (
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium">Twitter:</span>
                     <a
-                      href={application.socialMedia.twitter}
+                      href={application.twitter}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1"
                     >
-                      <span>{application.socialMedia.twitter}</span>
+                      <span>{application.twitter}</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>

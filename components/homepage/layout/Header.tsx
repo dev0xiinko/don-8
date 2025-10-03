@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/themes/theme-toggle"
+import HealthStatus from "@/components/health-status"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import dynamic from "next/dynamic"
@@ -64,17 +65,12 @@ export function Header() {
           <span className="text-xl font-bold">DON-8</span>
         </div>
         <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/ngo/management" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/ngo/login" className="text-muted-foreground hover:text-foreground transition-colors">
              NGO
            </Link>
           <Link href="#campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
             Campaigns
           </Link>
-          {walletAddress && (
-            <Link href="/campaigns" className="text-muted-foreground hover:text-foreground transition-colors">
-              Donors
-            </Link>
-          )}
           <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </Link>
@@ -83,6 +79,7 @@ export function Header() {
           </Link>
         </nav>
         <div className="flex items-center space-x-3">
+          <HealthStatus className="hidden sm:flex" showDetails={false} />
           <ThemeToggle />
           {typeof window !== "undefined" && !window.ethereum ? (
             <div className="ml-2">

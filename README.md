@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# � DON-8 - Transparent Blockchain Donations Platform
 
-## Getting Started
+## 🚀 **v2.1.0 - Backend Integration & Health Monitoring Update**
 
-First, run the development server:
+A revolutionary blockchain-powered donation platform with **real-time backend integration**, comprehensive **health monitoring**, and seamless **API connectivity**.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📌 **What's New in This Update**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### ✅ **Completed Features**
+- ✅ **Full Backend Integration** - Complete API layer with NestJS backend
+- ✅ **Real-time Health Monitoring** - Visual connection status indicators
+- ✅ **Authentication System** - User signup, login, and token management
+- ✅ **Organization Management** - CRUD operations for NGOs
+- ✅ **NGO Application Workflow** - Complete application and approval process
+- ✅ **Donation Drive Management** - Campaign creation and management
+- ✅ **CORS-enabled Communication** - Seamless frontend-backend connectivity
+- ✅ **TypeScript Integration** - Full type safety across the application
+- ✅ **Health Dashboard** - Comprehensive system status monitoring
+- ✅ **Error Handling** - Robust error management and user feedback
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🎯 **Core Features**
+- **Transparent Donations**: Blockchain-based transaction tracking
+- **NGO Verification**: Multi-step application and approval process  
+- **Real-time Monitoring**: Live backend connectivity status
+- **Responsive Design**: Mobile-friendly interface with health indicators
+- **Secure Authentication**: JWT-based user management
+- **Performance Metrics**: Response time tracking and monitoring
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+📂 NGO Application Process
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The NGO application module is structured as follows:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+ngo-application/
+ ├── [id]/
+ │    └── status.ts         # Handles NGO application status (fetch/update per NGO ID)
+ ├── ngo-application.ts     # Main entry for NGO application submission
+ └── route.ts               # API routes for NGO application (REST endpoints)
 
-## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+File Responsibilities
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+ngo-application.ts → Creates/submits an NGO application.
+
+route.ts → Defines backend routes related to NGO applications.
+
+[id]/status.ts → Fetches and updates application status for a specific NGO.

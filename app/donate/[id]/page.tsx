@@ -1,24 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { ethers } from "ethers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ArrowLeft, Heart, Shield, Users, MapPin, Star, Wallet, Eye, TrendingUp, CheckCircle } from "lucide-react"
+import {
+  ArrowLeft,
+  Heart,
+  Shield,
+  Users,
+  MapPin,
+  Star,
+  Wallet,
+  Eye,
+  TrendingUp,
+  CheckCircle,
+} from "lucide-react"
 
 export default function DonatePage() {
   const params = useParams()
   const ngoId = params.id
 
+  const [walletConnected, setWalletConnected] = useState(false)
+  const [userAddress, setUserAddress] = useState<string>("")
+  const [balance, setBalance] = useState<string>("0.0")
+  const [txHash, setTxHash] = useState<string>("")
   const [donationData, setDonationData] = useState({
     amount: "",
     currency: "ETH",
@@ -26,57 +40,118 @@ export default function DonatePage() {
     anonymous: false,
     recurring: false,
   })
+  const [step, setStep] = useState(1)
 
-  const [step, setStep] = useState(1) // 1: Details, 2: Payment, 3: Confirmation
+  // ✅ Mock NGO data (replace with API later)
+  const [ngo, setNgo] = useState<any>(null)
 
-  // Mock NGO data
-  const ngo = {
-    id: 1,
-    name: "Education for All Foundation",
-    description:
-      "Providing quality education to underprivileged children worldwide through innovative programs, teacher training, and infrastructure development.",
-    category: "Education",
-    location: "Philippines",
-    score: 95,
-    totalRaised: 125000,
-    goal: 200000,
-    donors: 1250,
-    image: "/placeholder.svg?height=120&width=120",
-    verified: true,
-    lastUpdate: "2 days ago",
-    walletAddress: "0x742d35Cc6634C0532925a3b8D4C0C8b3C2e1e416",
-    projects: [
-      "School Building Project - 75% Complete",
-      "Teacher Training Program - 60% Complete",
-      "Digital Learning Initiative - 40% Complete",
-    ],
-    recentUpdates: [
-      {
-        date: "2025-01-08",
-        title: "New classroom construction completed",
-        description: "We've successfully completed the construction of 3 new classrooms serving 150 students.",
-      },
-      {
-        date: "2025-01-05",
-        title: "Teacher training milestone reached",
-        description: "25 teachers have completed our modern education methodology training program.",
-      },
-    ],
+  useEffect(() => {
+    setNgo({
+      id: ngoId,
+      name: "Emergency Relief for Flood Victims",
+      description: "Providing immediate shelter, food, and medical aid to families affected by recent flooding in rural communities.",
+      category: "Emergency Relief",
+      location: "Philippines",
+      score: 95,
+      totalRaised: 125000,
+      goal: 200000,
+      donors: 1250,
+      image: "/flood.png",
+      verified: true,
+      lastUpdate: "2 days ago",
+      walletAddress: "0x742d35Cc6634C0532925a3b8D4C0C8b3C2e1e416",
+    })
+  }, [ngoId])
+
+  // ✅ Detect if wallet is already connected
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (typeof window !== "undefined" && (window as any).ethereum) {
+        try {
+          const accounts = await (window as any).ethereum.request({
+            method: "eth_accounts",
+          })
+          if (accounts.length > 0) {
+            setUserAddress(accounts[0])
+            setWalletConnected(true)
+            await fetchBalance(accounts[0])
+          }
+        } catch (err) {
+          console.error("Failed to check wallet connection:", err)
+        }
+      }
+    }
+    checkConnection()
+  }, [])
+
+  // ✅ Connect wallet manually
+  const connectWallet = async () => {
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        const accounts = await (window as any).ethereum.request({
+          method: "eth_requestAccounts",
+        })
+        setUserAddress(accounts[0])
+        setWalletConnected(true)
+        await fetchBalance(accounts[0])
+      } catch (err) {
+        console.error("Wallet connection rejected", err)
+      }
+    } else {
+      alert("MetaMask not detected. Please install MetaMask.")
+    }
+  }
+
+  // ✅ Fetch balance
+  const fetchBalance = async (address: string) => {
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      const balanceBigInt = await provider.getBalance(address)
+      const balanceInEth = ethers.formatEther(balanceBigInt)
+      setBalance(parseFloat(balanceInEth).toFixed(4))
+    } catch (err) {
+      console.error("Failed to fetch balance:", err)
+    }
   }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setDonationData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleDonate = () => {
-    if (step < 3) {
+  // ✅ Handle donation transaction
+  const handleDonate = async () => {
+    if (!walletConnected) {
+      alert("Please connect your wallet first.")
+      return
+    }
+
+    if (step < 2) {
       setStep(step + 1)
-    } else {
-      // Process donation
-      // Redirect to success page
-      window.location.href = "/donation/success"
+      return
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum)
+      const signer = await provider.getSigner()
+
+      const tx = await signer.sendTransaction({
+        to: ngo.walletAddress,
+        value: ethers.parseEther(donationData.amount || "0"),
+      })
+
+      console.log("Transaction:", tx)
+      setTxHash(tx.hash)
+      setStep(3)
+
+      // refresh balance after donating
+      await fetchBalance(userAddress)
+    } catch (error) {
+      console.error("Donation failed:", error)
+      alert("Transaction failed. Check console for details.")
     }
   }
+
+  if (!ngo) return <p>Loading campaign...</p>
 
   const progressPercentage = (ngo.totalRaised / ngo.goal) * 100
 
@@ -89,20 +164,28 @@ export default function DonatePage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Link>
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">D8</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">DON-8</span>
+          <div className="flex items-center space-x-4">
+            {walletConnected ? (
+              <>
+                <Badge variant="secondary">
+                  {userAddress.substring(0, 6)}...{userAddress.slice(-4)}
+                </Badge>
+                <span className="text-sm font-medium text-gray-700">Balance: {balance} ETH</span>
+              </>
+            ) : (
+              <Button onClick={connectWallet} className="bg-blue-600 text-white">
+                Connect Wallet
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
+      {/* Body */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* NGO Information */}
+          {/* NGO Info */}
           <div className="lg:col-span-2 space-y-6">
-            {/* NGO Header */}
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
@@ -159,67 +242,13 @@ export default function DonatePage() {
                       <span>Goal: ${ngo.goal.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">{ngo.donors}</div>
-                      <div className="text-sm text-gray-500">Donors</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">
-                        ${(ngo.totalRaised / ngo.donors).toFixed(0)}
-                      </div>
-                      <div className="text-sm text-gray-500">Avg. Donation</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-purple-600">{Math.round(progressPercentage)}%</div>
-                      <div className="text-sm text-gray-500">Complete</div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Active Projects */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Projects</CardTitle>
-                <CardDescription>Current initiatives your donation will support</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {ngo.projects.map((project, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <span className="text-sm">{project}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Updates */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Updates</CardTitle>
-                <CardDescription>Latest progress reports from the organization</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {ngo.recentUpdates.map((update, index) => (
-                    <div key={index} className="border-l-4 border-blue-500 pl-4">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="font-medium">{update.title}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {update.date}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">{update.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            
           </div>
+          
+          
 
           {/* Donation Form */}
           <div className="space-y-6">
@@ -234,117 +263,28 @@ export default function DonatePage() {
               <CardContent>
                 {step === 1 && (
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Donation Amount</Label>
-                      <div className="flex space-x-2">
-                        <Input
-                          id="amount"
-                          type="number"
-                          step="0.001"
-                          placeholder="0.00"
-                          value={donationData.amount}
-                          onChange={(e) => handleInputChange("amount", e.target.value)}
-                          className="flex-1"
-                        />
-                        <Select
-                          value={donationData.currency}
-                          onValueChange={(value) => handleInputChange("currency", value)}
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ETH">ETH</SelectItem>
-                            <SelectItem value="BTC">BTC</SelectItem>
-                            <SelectItem value="USDC">USDC</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        ≈ ${(Number.parseFloat(donationData.amount || "0") * 2500).toFixed(2)} USD
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleInputChange("amount", "0.1")}>
-                        0.1 ETH
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleInputChange("amount", "0.5")}>
-                        0.5 ETH
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleInputChange("amount", "1.0")}>
-                        1.0 ETH
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="message">Message (Optional)</Label>
-                      <Textarea
-                        id="message"
-                        placeholder="Leave a message of support..."
-                        value={donationData.message}
-                        onChange={(e) => handleInputChange("message", e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="anonymous"
-                          checked={donationData.anonymous}
-                          onCheckedChange={(checked) => handleInputChange("anonymous", checked as boolean)}
-                        />
-                        <Label htmlFor="anonymous" className="text-sm">
-                          Donate anonymously
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="recurring"
-                          checked={donationData.recurring}
-                          onCheckedChange={(checked) => handleInputChange("recurring", checked as boolean)}
-                        />
-                        <Label htmlFor="recurring" className="text-sm">
-                          Make this a monthly donation
-                        </Label>
-                      </div>
-                    </div>
+                    <Label htmlFor="amount">Donation Amount</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.001"
+                      placeholder="0.00"
+                      value={donationData.amount}
+                      onChange={(e) => handleInputChange("amount", e.target.value)}
+                    />
                   </div>
                 )}
 
                 {step === 2 && (
                   <div className="space-y-4">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <h4 className="font-medium mb-2">Donation Summary</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Amount:</span>
-                          <span>
-                            {donationData.amount} {donationData.currency}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Network Fee:</span>
-                          <span>~0.002 ETH</span>
-                        </div>
-                        <div className="flex justify-between font-medium border-t pt-1">
-                          <span>Total:</span>
-                          <span>{(Number.parseFloat(donationData.amount) + 0.002).toFixed(3)} ETH</span>
-                        </div>
-                      </div>
+                    <h4 className="font-medium">Donation Summary</h4>
+                    <div className="flex justify-between text-sm">
+                      <span>Amount:</span>
+                      <span>{donationData.amount} ETH</span>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label>Recipient Wallet</Label>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs font-mono break-all">{ngo.walletAddress}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Shield className="w-4 h-4" />
-                      <span>Secured by blockchain smart contracts</span>
+                    <div className="flex justify-between text-sm">
+                      <span>Recipient:</span>
+                      <span className="font-mono text-xs">{ngo.walletAddress}</span>
                     </div>
                   </div>
                 )}
@@ -354,15 +294,18 @@ export default function DonatePage() {
                     <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
                     <h4 className="text-lg font-semibold">Donation Confirmed!</h4>
                     <p className="text-sm text-gray-600">
-                      Your donation of {donationData.amount} {donationData.currency} has been successfully processed.
+                      Your donation of {donationData.amount} ETH has been successfully processed.
                     </p>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs">Transaction Hash:</p>
-                      <p className="text-xs font-mono">0x1234567890abcdef...</p>
-                    </div>
+                    {txHash && (
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <p className="text-xs">Transaction Hash:</p>
+                        <p className="text-xs font-mono break-all">{txHash}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
+                {/* Buttons */}
                 <div className="mt-6 space-y-3">
                   {step < 3 ? (
                     <Button
@@ -403,19 +346,6 @@ export default function DonatePage() {
                       Back
                     </Button>
                   )}
-                </div>
-
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Shield className="w-3 h-3" />
-                      <span>Blockchain Secured</span>
-                    </div>
-                    <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                    <span>Zero Platform Fees</span>
-                    <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                    <span>100% Transparent</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
