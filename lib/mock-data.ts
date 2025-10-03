@@ -1,11 +1,33 @@
 export interface Campaign {
-  id: string
-  name: string
+  id: number | string
+  title: string
+  name?: string // For backwards compatibility
   description: string
-  amount: number
-  image?: string
-  createdAt: string
+  longDescription?: string
+  ngoId: number
+  ngoName?: string
+  category: string
+  targetAmount: number
+  amount?: number // For backwards compatibility
+  raisedAmount?: number
+  currentAmount?: number
+  donorCount: number
+  imageUrl?: string
+  image?: string // For backwards compatibility
+  location?: string
+  startDate?: string
+  endDate?: string
   status: "active" | "completed" | "pending"
+  featured?: boolean
+  walletAddress?: string
+  createdAt: string
+  lastUpdated?: string
+  updates?: any[]
+  milestones?: any[]
+  beneficiaries?: number
+  tags?: string[]
+  urgencyLevel?: string
+  images?: string[]
   reportUrl?: string
 }
 
@@ -45,32 +67,50 @@ export const mockNGOData: NGOData = {
   campaigns: [
     {
       id: "1",
-      name: "Clean Water Initiative",
+      title: "Clean Water Initiative",
+      name: "Clean Water Initiative", // For compatibility
       description: "Providing clean water access to rural communities in Southeast Asia",
-      amount: 15000,
-      image: "/clean-water-well-in-rural-village.jpg",
+      ngoId: 1,
+      category: "Water & Sanitation",
+      targetAmount: 15000,
+      amount: 15000, // For compatibility
+      donorCount: 25,
+      imageUrl: "/clean-water-well-in-rural-village.jpg",
+      image: "/clean-water-well-in-rural-village.jpg", // For compatibility
       createdAt: "2024-01-15",
       status: "active",
       reportUrl: "/reports/clean-water-q1-2024.pdf",
     },
     {
-      id: "2",
-      name: "Education for All",
+      id: "2", 
+      title: "Education for All",
+      name: "Education for All", // For compatibility
       description: "Building schools and providing educational materials for underprivileged children",
-      amount: 25000,
-      image: "/children-studying-in-classroom.jpg",
-      createdAt: "2024-02-20",
+      ngoId: 1,
+      category: "Education",
+      targetAmount: 25000,
+      amount: 25000, // For compatibility
+      donorCount: 15,
+      imageUrl: "/children-studying-in-classroom.jpg",
+      image: "/children-studying-in-classroom.jpg", // For compatibility
+      createdAt: "2024-02-01",
       status: "active",
     },
     {
       id: "3",
-      name: "Medical Relief Fund",
+      title: "Medical Relief Fund", 
+      name: "Medical Relief Fund", // For compatibility
       description: "Emergency medical supplies and healthcare services for disaster-affected areas",
-      amount: 18500,
-      image: "/medical-supplies-and-healthcare-workers.jpg",
-      createdAt: "2023-12-10",
+      ngoId: 1,
+      category: "Healthcare",
+      targetAmount: 18500,
+      amount: 18500, // For compatibility
+      donorCount: 42,
+      imageUrl: "/medical-supplies-and-healthcare-workers.jpg",
+      image: "/medical-supplies-and-healthcare-workers.jpg", // For compatibility
+      createdAt: "2024-01-20",
       status: "completed",
-      reportUrl: "/reports/medical-relief-2023.pdf",
+      reportUrl: "/reports/medical-relief-final-report.pdf",
     },
   ],
   transactions: [

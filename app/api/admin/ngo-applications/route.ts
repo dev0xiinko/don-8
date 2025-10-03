@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Implement admin NGO applications list
-    // This should connect to your NestJS backend
+    // Read NGO applications from JSON file
+    const filePath = path.join(process.cwd(), 'mock', 'ngo-applications.json');
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+    const applications = JSON.parse(fileContents);
     
-    return NextResponse.json(
-      { message: 'Admin NGO applications endpoint - connect to backend' },
-      { status: 501 }
-    );
+    // Return the applications directly since it's now an array
+    return NextResponse.json(applications);
   } catch (error) {
+    console.error('Error reading NGO applications:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch NGO applications' },
       { status: 500 }
     );
   }

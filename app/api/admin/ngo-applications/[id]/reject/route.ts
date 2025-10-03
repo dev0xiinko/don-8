@@ -1,39 +1,49 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
 interface RouteParams {
   params: { id: string };
 }
 
-export async function POST(request: Request, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const body = await request.json();
-    const { notes } = body;
-    const { id } = params;
+    const { reviewNotes } = await request.json();
+    const applicationId = parseInt(params.id);
     
-    // Verify authentication
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer admin_')) {
+    // Read current applications
+    const filePath = path.join(process.cwd(), 'mock', 'ngo-applications.json');
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+    const applications = JSON.parse(fileContents);
+    
+    // Find and update the application
+    const applicationIndex = applications.findIndex(
+      (app: any) => app.id === applicationId
+    );
+    
+    if (applicationIndex === -1) {
       return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
+        { error: 'Application not found' },
+        { status: 404 }
       );
     }
-
-    console.log(`Rejecting application ${id} with notes:`, notes);
-
-    // TODO: Connect to backend API instead of direct database
-    // const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    // await fetch(`${backendUrl}/ngo/${id}/status`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
-    //   body: JSON.stringify({ status: 'REJECTED', notes })
-    // });
+    
+    // Update application status
+    applications[applicationIndex] = {
+      ...applications[applicationIndex],
+      status: 'rejected',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: 'admin@don8.com',
+      reviewNotes: reviewNotes || 'Application rejected. Please review and resubmit with additional information.',
+      credentials: null
+    };
+    
+    // Write back to file
+    fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
 
     return NextResponse.json({
       message: 'Application rejected successfully',
-      applicationId: id,
-      status: 'REJECTED',
-      notes: notes
+      application: applications[applicationIndex]
     });
   } catch (error: any) {
     console.error("Error rejecting NGO application:", error);
