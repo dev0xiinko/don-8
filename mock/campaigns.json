@@ -92,5 +92,69 @@
       }
     ],
     "milestones": []
+  },
+  {
+    "id": 3,
+    "title": "cebu donation-2025",
+    "description": "cebu donation-2025",
+    "longDescription": "cebu donation-2025",
+    "ngoId": 1,
+    "ngoName": "Web3 Cebu",
+    "category": "Emergency Relief",
+    "targetAmount": 1,
+    "raisedAmount": 0.01,
+    "currentAmount": 0.01,
+    "donorCount": 1,
+    "imageUrl": null,
+    "images": [],
+    "location": "Philippines",
+    "startDate": "2025-10-05T16:18:44.577Z",
+    "endDate": "2025-10-31",
+    "status": "active",
+    "featured": false,
+    "urgencyLevel": "urgent",
+    "walletAddress": "0x8cba8d62cad772c4275266d1128d73d02cdd2830",
+    "createdAt": "2025-10-05T16:18:44.578Z",
+    "lastUpdated": "2025-10-05T16:25:04.440Z",
+    "beneficiaries": 0,
+    "tags": [
+      "urgent",
+      "emergency"
+    ],
+    "updates": [],
+    "milestones": []
+  },
+  {
+    "id": 4,
+    "title": "campaignData",
+    "description": "campaignData",
+    "longDescription": "campaignData",
+    "ngoId": 1,
+    "ngoName": "Web3 Cebu",
+    "category": "Emergency Relief",
+    "targetAmount": 1,
+    "raisedAmount": 0,
+    "currentAmount": 0,
+    "donorCount": 0,
+    "imageUrl": "blob:http://localhost:3000/fa37bba6-ea4a-4423-96ad-c6300868fc5e",
+    "images": [
+      "blob:http://localhost:3000/fa37bba6-ea4a-4423-96ad-c6300868fc5e"
+    ],
+    "location": "Philippines",
+    "startDate": "2025-10-05T16:22:53.804Z",
+    "endDate": "2025-10-31",
+    "status": "active",
+    "featured": false,
+    "urgencyLevel": "urgent",
+    "walletAddress": "0x8cba8d62cad772c4275266d1128d73d02cdd2830",
+    "createdAt": "2025-10-05T16:22:53.804Z",
+    "lastUpdated": "2025-10-05T16:22:53.804Z",
+    "beneficiaries": 0,
+    "tags": [
+      "urgent",
+      "emergency"
+    ],
+    "updates": [],
+    "milestones": []
   }
 ]

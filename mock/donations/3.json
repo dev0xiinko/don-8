@@ -1,0 +1,19 @@
+[
+  {
+    "id": "1759681500914_0x4702654f5b872d29616c2fccd6728219342d9e482cdb3032db36a88f66742c7f",
+    "campaignId": "3",
+    "txHash": "0x4702654f5b872d29616c2fccd6728219342d9e482cdb3032db36a88f66742c7f",
+    "amount": "0.01",
+    "currency": "SONIC",
+    "timestamp": "2025-10-05T16:25:00.914Z",
+    "status": "confirmed",
+    "explorerUrl": "https://blaze.soniclabs.com/tx/0x4702654f5b872d29616c2fccd6728219342d9e482cdb3032db36a88f66742c7f",
+    "donorAddress": "0xdf744ba5808cde3e87b3390a8a3dce5ccb349068",
+    "message": "",
+    "anonymous": true,
+    "networkName": "Sonic Blaze Testnet",
+    "confirmationTime": "2025-10-05T16:25:04.348Z",
+    "blockNumber": 64547994,
+    "gasUsed": "21000"
+  }
+]

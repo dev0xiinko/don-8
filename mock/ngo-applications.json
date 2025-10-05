@@ -58,5 +58,31 @@
       "password": "Web3Cebu2024"
     },
     "reviewNotes": "Quick approval from dashboard"
+  },
+  {
+    "id": 3,
+    "organizationName": "DriveX - Business Plan",
+    "email": "admin@don8.app",
+    "phone": "",
+    "description": "Sample",
+    "address": "",
+    "registrationNumber": "",
+    "taxId": "",
+    "bankAccountDetails": "",
+    "walletAddress": "0xdf744ba5808cde3e87b3390a8a3dce5ccb349068",
+    "contactPersonName": "",
+    "uploadedDocuments": [],
+    "website": "",
+    "category": "healthcare",
+    "foundedYear": "",
+    "teamSize": "",
+    "twitter": "",
+    "facebook": "",
+    "linkedin": "",
+    "status": "pending",
+    "submittedAt": "2025-10-05T16:09:24.535Z",
+    "reviewedAt": null,
+    "reviewedBy": null,
+    "credentials": null
   }
 ]

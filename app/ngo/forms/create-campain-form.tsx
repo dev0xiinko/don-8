@@ -21,10 +21,14 @@ interface Campaign {
 }
 
 interface CreateCampaignFormProps {
-  onCampaignCreate: (campaignData: Omit<Campaign, "id" | "createdAt" | "status">) => void;
+  onCampaignCreate: (
+    campaignData: Omit<Campaign, "id" | "createdAt" | "status">
+  ) => void;
 }
 
-export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps) {
+export function CreateCampaignForm({
+  onCampaignCreate,
+}: CreateCampaignFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [targetAmount, setTargetAmount] = useState("");

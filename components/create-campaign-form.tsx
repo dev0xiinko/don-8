@@ -23,10 +23,14 @@ interface Campaign {
 }
 
 interface CreateCampaignFormProps {
-  onCampaignCreate: (campaignData: Omit<Campaign, "id" | "createdAt" | "status">) => void;
+  onCampaignCreate: (
+    campaignData: Omit<Campaign, "id" | "createdAt" | "status">
+  ) => void;
 }
 
-export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps) {
+export function CreateCampaignForm({
+  onCampaignCreate,
+}: CreateCampaignFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -41,10 +45,10 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
       return;
     }
 
-        // Handle image - use blob storage for consistent storage
+    // Handle image - use blob storage for consistent storage
     let finalImageUrl = "";
     let blobImages: string[] = [];
-    
+
     if (imageFile) {
       // Store file using blob storage system
       finalImageUrl = storeImageBlob(imageFile);
@@ -165,7 +169,9 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-muted-foreground">Or</span>
+                  <span className="bg-white px-2 text-muted-foreground">
+                    Or
+                  </span>
                 </div>
               </div>
 
@@ -194,11 +200,14 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
                   <p className="text-sm font-medium mb-2">Preview:</p>
                   <div className="relative w-full h-48 bg-gray-100 rounded overflow-hidden">
                     <img
-                      src={imageFile ? URL.createObjectURL(imageFile) : imageUrl}
+                      src={
+                        imageFile ? URL.createObjectURL(imageFile) : imageUrl
+                      }
                       alt="Campaign preview"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.currentTarget.src = "https://via.placeholder.com/400x300?text=Invalid+Image";
+                        e.currentTarget.src =
+                          "https://via.placeholder.com/400x300?text=Invalid+Image";
                       }}
                     />
                   </div>
@@ -246,7 +255,7 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
 
           <Button onClick={handleSubmit} className="w-full">
             <Sparkles className="w-4 h-4 mr-2" />
-            Create Campaign
+            Create this Campaign now
           </Button>
         </div>
       </CardContent>

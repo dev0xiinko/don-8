@@ -9,7 +9,7 @@ interface TransactionsTabProps {
 export function TransactionsTab({ transactions }: TransactionsTabProps) {
   return (
     <div className="space-y-6">
-      <TransactionHistory transactions={transactions} />
+      <TransactionHistory transactions={transactions ?? []} />
     </div>
   );
 }

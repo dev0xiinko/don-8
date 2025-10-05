@@ -11,12 +11,7 @@ import { TransactionsTab } from "@/app/ngo/tabs/transaction-tab";
 import { WithdrawalsTab } from "@/app/ngo/tabs/withdrawals-tab";
 import { WithdrawalModal } from "@/app/ngo/tabs/withdrawals-modal";
 import { mockNGOData, type Campaign } from "@/lib/mock-data";
-import {
-  Heart,
-  TrendingUp,
-  Wallet,
-  Download,
-} from "lucide-react";
+import { Heart, TrendingUp, Wallet, Download } from "lucide-react";
 import { getBalanceFromAddress } from "@/lib/metamask";
 
 export default function NGODashboardPage() {
@@ -38,23 +33,23 @@ export default function NGODashboardPage() {
   // Load NGO data from session storage on component mount
   useEffect(() => {
     const loadNgoData = () => {
-      if (typeof window !== 'undefined') {
-        const ngoLoggedIn = sessionStorage.getItem('ngo_logged_in');
-        const ngoInfo = sessionStorage.getItem('ngo_info');
-        
-        if (ngoLoggedIn === 'true' && ngoInfo) {
+      if (typeof window !== "undefined") {
+        const ngoLoggedIn = sessionStorage.getItem("ngo_logged_in");
+        const ngoInfo = sessionStorage.getItem("ngo_info");
+
+        if (ngoLoggedIn === "true" && ngoInfo) {
           try {
             const parsedNgoInfo = JSON.parse(ngoInfo);
             setNgoData(parsedNgoInfo);
             fetchNgoCampaigns(parsedNgoInfo.id);
           } catch (error) {
-            console.error('Error parsing NGO info:', error);
+            console.error("Error parsing NGO info:", error);
             // Redirect to login if data is corrupted
-            window.location.href = '/ngo/login';
+            window.location.href = "/ngo/login";
           }
         } else {
           // Redirect to login if not logged in
-          window.location.href = '/ngo/login';
+          window.location.href = "/ngo/login";
         }
       }
       setIsLoading(false);
@@ -72,14 +67,14 @@ export default function NGODashboardPage() {
         setCampaigns(result.campaigns);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
+      console.error("Error fetching campaigns:", error);
     }
   };
 
   useEffect(() => {
     const fetchBalance = async () => {
       if (!ngoData?.walletAddress) return;
-      
+
       setIsLoadingBalance(true);
       const balance = await getBalanceFromAddress(ngoData.walletAddress);
       setWalletBalance(balance);
@@ -103,13 +98,13 @@ export default function NGODashboardPage() {
         ...campaignData,
         ngoId: ngoData.id,
         ngoName: ngoData.organizationName,
-        walletAddress: ngoData.walletAddress
+        walletAddress: ngoData.walletAddress,
       };
 
-      const response = await fetch('/api/ngo/campaigns', {
-        method: 'POST',
+      const response = await fetch("/api/ngo/campaigns", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(campaignPayload),
       });
@@ -119,12 +114,12 @@ export default function NGODashboardPage() {
       if (result.success) {
         // Refresh the campaigns list
         await fetchNgoCampaigns(ngoData.id);
-        console.log('Campaign created successfully:', result.campaign);
+        console.log("Campaign created successfully:", result.campaign);
       } else {
-        console.error('Failed to create campaign:', result.message);
+        console.error("Failed to create campaign:", result.message);
       }
     } catch (error) {
-      console.error('Error creating campaign:', error);
+      console.error("Error creating campaign:", error);
     }
 
     alert("Campaign created successfully!");
@@ -133,11 +128,12 @@ export default function NGODashboardPage() {
   const handleReportUpload = (campaignId: string, file: File) => {
     setNgoData((prev: any) => ({
       ...prev,
-      campaigns: prev?.campaigns?.map((campaign: any) =>
-        campaign.id === campaignId
-          ? { ...campaign, reportUrl: `/reports/${file.name}` }
-          : campaign
-      ) || [],
+      campaigns:
+        prev?.campaigns?.map((campaign: any) =>
+          campaign.id === campaignId
+            ? { ...campaign, reportUrl: `/reports/${file.name}` }
+            : campaign
+        ) || [],
     }));
 
     alert(`Report "${file.name}" uploaded successfully!`);
@@ -159,9 +155,7 @@ export default function NGODashboardPage() {
   };
 
   const handleWithdrawalSuccess = (withdrawalData: any) => {
-    setWalletBalance((prev) =>
-      prev ? prev - withdrawalData.amount : 0
-    );
+    setWalletBalance((prev) => (prev ? prev - withdrawalData.amount : 0));
 
     const newWithdrawal = {
       id: Date.now().toString(),
@@ -536,7 +530,7 @@ export default function NGODashboardPage() {
           </TabsContent>
 
           <TabsContent value="withdrawals">
-            <WithdrawalsTab withdrawals={ngoData.withdrawals} />
+            <WithdrawalsTab withdrawals={ngoData.withdrawals ?? []} />
           </TabsContent>
         </Tabs>
       </div>

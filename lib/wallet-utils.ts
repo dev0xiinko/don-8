@@ -1,14 +1,20 @@
-import { ethers, BrowserProvider, formatEther } from "ethers";
-import type { WalletInfo } from "@/types/wallet"
+import { BrowserProvider, formatEther } from "ethers";
+import type { WalletInfo } from "@/types/wallet";
 
 // MetaMask utilities
 export const isMetaMaskInstalled = (): boolean => {
-  return typeof window !== "undefined" && typeof window.ethereum !== "undefined" && !!window.ethereum.isMetaMask
-}
+  return (
+    typeof window !== "undefined" &&
+    typeof window.ethereum !== "undefined" &&
+    !!window.ethereum.isMetaMask
+  );
+};
 
 export const connectMetaMask = async (): Promise<WalletInfo> => {
   if (!isMetaMaskInstalled()) {
-    throw new Error("MetaMask is not installed. Please install MetaMask to continue.");
+    throw new Error(
+      "MetaMask is not installed. Please install MetaMask to continue."
+    );
   }
 
   try {
@@ -42,27 +48,27 @@ export const connectMetaMask = async (): Promise<WalletInfo> => {
     console.error("MetaMask connection error:", error);
     throw new Error(error.message || "Failed to connect to MetaMask");
   }
-}
+};
 
 export const switchToEthereumMainnet = async (): Promise<void> => {
   if (!isMetaMaskInstalled()) {
-    throw new Error("MetaMask is not installed")
+    throw new Error("MetaMask is not installed");
   }
 
   try {
     await window.ethereum!.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: "0x1" }], // Ethereum Mainnet
-    })
+    });
   } catch (error: any) {
-    console.error("Network switch error:", error)
-    throw new Error("Failed to switch to Ethereum Mainnet")
+    console.error("Network switch error:", error);
+    throw new Error("Failed to switch to Ethereum Mainnet");
   }
-}
+};
 
 export const switchToBaseSepolia = async (): Promise<void> => {
   if (!isMetaMaskInstalled()) {
-    throw new Error("MetaMask is not installed")
+    throw new Error("MetaMask is not installed");
   }
 
   try {
@@ -71,7 +77,7 @@ export const switchToBaseSepolia = async (): Promise<void> => {
       await window.ethereum!.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: "0x14a34" }], // Base Sepolia chainId (84532 in hex)
-      })
+      });
     } catch (switchError: any) {
       // This error code indicates that the chain has not been added to MetaMask
       if (switchError.code === 4902) {
@@ -90,33 +96,39 @@ export const switchToBaseSepolia = async (): Promise<void> => {
               blockExplorerUrls: ["https://sepolia.basescan.org"],
             },
           ],
-        })
+        });
       } else {
-        throw switchError
+        throw switchError;
       }
     }
   } catch (error: any) {
-    console.error("Network switch error:", error)
-    throw new Error("Failed to switch to Base Sepolia")
+    console.error("Network switch error:", error);
+    throw new Error("Failed to switch to Base Sepolia");
   }
-}
+};
 
 // Phantom utilities
 export const isPhantomInstalled = (): boolean => {
-  return typeof window !== "undefined" && typeof window.solana !== "undefined" && !!window.solana.isPhantom
-}
+  return (
+    typeof window !== "undefined" &&
+    typeof window.solana !== "undefined" &&
+    !!window.solana.isPhantom
+  );
+};
 
 export const connectPhantom = async (): Promise<WalletInfo> => {
   if (!isPhantomInstalled()) {
-    throw new Error("Phantom wallet is not installed. Please install Phantom to continue.")
+    throw new Error(
+      "Phantom wallet is not installed. Please install Phantom to continue."
+    );
   }
 
   try {
-    const response = await window.solana!.connect()
-    const address = response.publicKey.toString()
+    const response = await window.solana!.connect();
+    const address = response.publicKey.toString();
 
     // For Phantom, we'll simulate balance (in a real app, you'd fetch from Solana RPC)
-    const balance = "0.0000" // Placeholder - would need Solana connection to get real balance
+    const balance = "0.0000"; // Placeholder - would need Solana connection to get real balance
 
     return {
       address,
@@ -124,119 +136,130 @@ export const connectPhantom = async (): Promise<WalletInfo> => {
       chainId: "solana-mainnet",
       network: "Solana Mainnet",
       walletType: "phantom",
-    }
+    };
   } catch (error: any) {
-    console.error("Phantom connection error:", error)
-    throw new Error(error.message || "Failed to connect to Phantom")
+    console.error("Phantom connection error:", error);
+    throw new Error(error.message || "Failed to connect to Phantom");
   }
-}
+};
 
 // General utilities
-export const disconnectWallet = async (walletType: "metamask" | "phantom"): Promise<void> => {
+export const disconnectWallet = async (
+  walletType: "metamask" | "phantom"
+): Promise<void> => {
   try {
     if (walletType === "phantom" && window.solana) {
-      await window.solana.disconnect()
+      await window.solana.disconnect();
     }
     // MetaMask doesn't have a disconnect method - user needs to disconnect manually
 
     // Clear stored connection data
-    localStorage.removeItem("wallet-connection")
+    localStorage.removeItem("wallet-connection");
   } catch (error) {
-    console.error("Disconnect error:", error)
+    console.error("Disconnect error:", error);
   }
-}
+};
 
-export const getStoredWalletConnection = (): { walletType: "metamask" | "phantom"; address: string } | null => {
-  if (typeof window === "undefined") return null
+export const getStoredWalletConnection = (): {
+  walletType: "metamask" | "phantom";
+  address: string;
+} | null => {
+  if (typeof window === "undefined") return null;
 
   try {
-    const stored = localStorage.getItem("wallet-connection")
-    return stored ? JSON.parse(stored) : null
+    const stored = localStorage.getItem("wallet-connection");
+    return stored ? JSON.parse(stored) : null;
   } catch {
-    return null
+    return null;
   }
-}
+};
 
-export const storeWalletConnection = (walletType: "metamask" | "phantom", address: string): void => {
-  if (typeof window === "undefined") return
+export const storeWalletConnection = (
+  walletType: "metamask" | "phantom",
+  address: string
+): void => {
+  if (typeof window === "undefined") return;
 
-  localStorage.setItem("wallet-connection", JSON.stringify({ walletType, address }))
-}
+  localStorage.setItem(
+    "wallet-connection",
+    JSON.stringify({ walletType, address })
+  );
+};
 
 export const clearWalletConnection = (): void => {
-  if (typeof window === "undefined") return
+  if (typeof window === "undefined") return;
 
-  localStorage.removeItem("wallet-connection")
-}
+  localStorage.removeItem("wallet-connection");
+};
 
 // Get current wallet info
 export const getCurrentWalletInfo = async (): Promise<WalletInfo | null> => {
-  const stored = getStoredWalletConnection()
-  if (!stored) return null
+  const stored = getStoredWalletConnection();
+  if (!stored) return null;
 
   try {
     if (stored.walletType === "metamask" && isMetaMaskInstalled()) {
       if (window.ethereum!.selectedAddress) {
-        return await connectMetaMask()
+        return await connectMetaMask();
       }
     } else if (stored.walletType === "phantom" && isPhantomInstalled()) {
       if (window.solana!.isConnected) {
-        return await connectPhantom()
+        return await connectPhantom();
       }
     }
   } catch (error) {
-    console.error("Error getting current wallet info:", error)
-    clearWalletConnection()
+    console.error("Error getting current wallet info:", error);
+    clearWalletConnection();
   }
 
-  return null
-}
+  return null;
+};
 
 // Setup wallet event listeners
 export const setupWalletListeners = (
   onAccountChange: (accounts: string[]) => void,
   onChainChange: (chainId: string) => void,
-  onDisconnect: () => void,
+  onDisconnect: () => void
 ) => {
-  const cleanup: (() => void)[] = []
+  const cleanup: (() => void)[] = [];
 
   // MetaMask listeners
   if (isMetaMaskInstalled()) {
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
-        onDisconnect()
+        onDisconnect();
       } else {
-        onAccountChange(accounts)
+        onAccountChange(accounts);
       }
-    }
+    };
 
     const handleChainChanged = (chainId: string) => {
-      onChainChange(chainId)
-    }
+      onChainChange(chainId);
+    };
 
-    window.ethereum!.on("accountsChanged", handleAccountsChanged)
-    window.ethereum!.on("chainChanged", handleChainChanged)
+    window.ethereum!.on("accountsChanged", handleAccountsChanged);
+    window.ethereum!.on("chainChanged", handleChainChanged);
 
     cleanup.push(() => {
-      window.ethereum!.removeListener("accountsChanged", handleAccountsChanged)
-      window.ethereum!.removeListener("chainChanged", handleChainChanged)
-    })
+      window.ethereum!.removeListener("accountsChanged", handleAccountsChanged);
+      window.ethereum!.removeListener("chainChanged", handleChainChanged);
+    });
   }
 
   // Phantom listeners
   if (isPhantomInstalled()) {
     const handleDisconnect = () => {
-      onDisconnect()
-    }
+      onDisconnect();
+    };
 
-    window.solana!.on("disconnect", handleDisconnect)
+    window.solana!.on("disconnect", handleDisconnect);
 
     cleanup.push(() => {
-      window.solana!.removeListener("disconnect", handleDisconnect)
-    })
+      window.solana!.removeListener("disconnect", handleDisconnect);
+    });
   }
 
   return () => {
-    cleanup.forEach((fn) => fn())
-  }
-}
+    cleanup.forEach((fn) => fn());
+  };
+};
