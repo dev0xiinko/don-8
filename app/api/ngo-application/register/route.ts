@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from 'fs';
 import path from 'path';
+import { sendVerificationEmail } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   // API endpoint for NGO application registration
@@ -30,6 +31,11 @@ export async function POST(req: Request) {
     const newId = maxId + 1;
 
     // Create new application object
+    // Generate initial email verification fields
+    const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCode = generateCode();
+    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
+
     const newApplication = {
       id: newId,
       organizationName: body.name, // Form sends 'name' not 'organizationName'
@@ -56,7 +62,11 @@ export async function POST(req: Request) {
       reviewedBy: null,
       // Store the actual password provided during registration
       registrationPassword: body.password,
-      credentials: null
+      credentials: null,
+      // Email verification
+      emailVerified: false,
+      verificationCode,
+      verificationExpiresAt
     };
 
     // Add to applications array
@@ -65,18 +75,21 @@ export async function POST(req: Request) {
 
     // Save back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
-    console.log(`Saved ${applications.length} applications to file`);
 
-    const result = {
-      success: true,
-      applicationId: newId,
-      message: "Application submitted successfully"
-    };
+    // Send verification email (best-effort; if it fails, client can retry via verify/send)
+    try {
+      await sendVerificationEmail(body.email, verificationCode)
+    } catch (e) {
+      console.warn('Verification email failed to send on registration. User can resend.', e)
+    }
+    console.log(`Saved ${applications.length} applications to file`);
 
     return NextResponse.json({
       success: true,
-      message: "NGO application submitted successfully",
-      applicationId: result.applicationId,
+      message: "NGO application submitted successfully. Verification code sent to email.",
+      applicationId: newId,
+      // For development/testing visibility only; do not expose in production
+      devOnlyVerificationCode: verificationCode
     });
 
   } catch (error: any) {

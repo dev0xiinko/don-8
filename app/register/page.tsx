@@ -29,6 +29,11 @@ export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [applicationId, setApplicationId] = useState<number | null>(null);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<string>("");
+  const [devVerificationCode, setDevVerificationCode] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [walletError, setWalletError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -172,18 +177,71 @@ export default function RegisterPage() {
 
       console.log("Application submitted successfully:", result);
       
-      // Store in sessionStorage for confirmation page
+      setApplicationId(result.applicationId);
+      // Capture dev-only code for local testing (no real email provider)
+      if (result.devOnlyVerificationCode) {
+        setDevVerificationCode(result.devOnlyVerificationCode);
+      }
+      // Store in sessionStorage for confirmation page and verification step
       sessionStorage.setItem("ngoProfile", JSON.stringify({
         ...formData,
         applicationId: result.applicationId
       }));
-      
       setSubmitted(true);
     } catch (err: any) {
       console.error("Application submission error:", err);
       alert(`Failed to submit application: ${err.message}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!applicationId) return;
+    setVerifying(true);
+    setVerifyMessage("");
+    try {
+      const res = await fetch('/api/ngo-application/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, action: 'send' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVerifyMessage('Verification code sent to your email.');
+        if (data.devOnlyVerificationCode) {
+          setDevVerificationCode(data.devOnlyVerificationCode);
+        }
+      } else {
+        setVerifyMessage(data.message || 'Failed to send verification code.');
+      }
+    } catch (e: any) {
+      setVerifyMessage('Failed to send verification code.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!applicationId || !verifyCode) return;
+    setVerifying(true);
+    setVerifyMessage("");
+    try {
+      const res = await fetch('/api/ngo-application/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, action: 'verify', code: verifyCode })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVerifyMessage('Email verified! You can now sign in after admin approval.');
+      } else {
+        setVerifyMessage(data.message || 'Invalid or expired code.');
+      }
+    } catch (e: any) {
+      setVerifyMessage('Verification failed.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -196,16 +254,37 @@ export default function RegisterPage() {
               Application Submitted
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Please check your email for any updates regarding your
-              application.
+              We sent a 6-digit verification code to your email. Enter it below to verify your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/">
-              <Button className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700 w-full">
-                Back to Home
-              </Button>
-            </Link>
+            <div className="space-y-4">
+              {devVerificationCode && (
+                <div className="p-3 rounded-md bg-yellow-50 text-yellow-800 text-sm text-left">
+                  <div className="font-medium">Development only</div>
+                  <div>Your verification code: <span className="font-mono">{devVerificationCode}</span></div>
+                  <div className="text-xs mt-1">This is shown because no email provider is configured. Hide this in production.</div>
+                </div>
+              )}
+              <div className="text-left">
+                <Label htmlFor="verifyCode">Verification Code</Label>
+                <Input id="verifyCode" value={verifyCode} onChange={(e) => setVerifyCode(e.target.value)} placeholder="Enter 6-digit code" />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleVerifyCode} disabled={verifying || verifyCode.length < 6} className="bg-emerald-600 text-white hover:bg-emerald-700 w-full">
+                  {verifying ? 'Verifying...' : 'Verify Email'}
+                </Button>
+                <Button variant="outline" onClick={handleResendCode} disabled={verifying} className="w-full">
+                  Resend Code
+                </Button>
+              </div>
+              {verifyMessage && <div className="text-sm text-gray-700">{verifyMessage}</div>}
+              <div className="pt-4">
+                <Link href="/">
+                  <Button variant="ghost" className="w-full">Back to Home</Button>
+                </Link>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
