@@ -49,7 +49,7 @@ export function WithdrawalHistory({ withdrawals }: WithdrawalHistoryProps) {
               <div key={withdrawal.id} className="flex items-center justify-between gap-4 rounded-lg border p-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <p className="font-medium text-lg">{withdrawal.amount.toFixed(2)} ETH</p>
+                    <p className="font-medium text-lg">{withdrawal.amount.toFixed(4)} SONIC</p>
                     <Badge className={statusConfig.className}>
                       <StatusIcon className="h-3 w-3 mr-1" />
                       {statusConfig.label}

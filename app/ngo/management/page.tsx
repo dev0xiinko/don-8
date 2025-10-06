@@ -26,6 +26,8 @@ export default function NGODashboardPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
+  const [reputationScore, setReputationScore] = useState<number>(0);
+  const [isLoadingReputation, setIsLoadingReputation] = useState(true);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletInfo, setWalletInfo] = useState<{
@@ -36,6 +38,29 @@ export default function NGODashboardPage() {
   } | null>(null);
   const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [withdrawalRefreshKey, setWithdrawalRefreshKey] = useState(0);
+
+  // Fetch live reputation score from transparency system
+  const fetchReputationScore = async (ngoId: number) => {
+    try {
+      setIsLoadingReputation(true);
+      const response = await fetch(`/api/ngo-scores?ngoId=${ngoId}`);
+      const result = await response.json();
+      
+      if (result.success && result.score) {
+        setReputationScore(result.score.currentScore || 0);
+        console.log(`✅ Reputation score loaded for NGO ${ngoId}: ${result.score.currentScore}`);
+      } else {
+        console.log(`⚠️ No reputation score found for NGO ${ngoId}, using default`);
+        setReputationScore(0);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching reputation score:', error);
+      setReputationScore(0);
+    } finally {
+      setIsLoadingReputation(false);
+    }
+  };
 
   // Load NGO data from session storage on component mount
   useEffect(() => {
@@ -51,8 +76,9 @@ export default function NGODashboardPage() {
             setNgoData(parsedNgoInfo);
             // Use the correct ID field from session
             const ngoId = parsedNgoInfo.id || parsedNgoInfo.ngoId;
-            console.log(`🔍 Using NGO ID for campaign fetch: ${ngoId}`);
+            console.log(`🔍 Using NGO ID for data fetch: ${ngoId}`);
             fetchNgoCampaigns(ngoId);
+            fetchReputationScore(ngoId);
           } catch (error) {
             console.error('Error parsing NGO info:', error);
             // Redirect to login if data is corrupted
@@ -257,9 +283,14 @@ export default function NGODashboardPage() {
   };
 
   const handleWithdrawalSuccess = async (withdrawalData: any) => {
-    setWalletBalance((prev) =>
-      prev ? prev - withdrawalData.amount : 0
-    );
+    // Update wallet balance - use newBalance if provided, otherwise calculate
+    if (withdrawalData.newBalance) {
+      setWalletInfo((prev) => prev ? { ...prev, balance: withdrawalData.newBalance } : null);
+    } else {
+      setWalletBalance((prev) =>
+        prev ? prev - withdrawalData.amount : 0
+      );
+    }
 
     const newWithdrawal = {
       id: Date.now().toString(),
@@ -268,12 +299,21 @@ export default function NGODashboardPage() {
       txHash: withdrawalData.txHash,
       date: new Date().toISOString().split("T")[0],
       status: "completed" as const,
+      network: "Blaze Sonic Labs",
+      currency: "SONIC"
     };
 
     setNgoData((prev: typeof ngoData) => ({
       ...prev,
       withdrawals: [newWithdrawal, ...(prev?.withdrawals ?? [])],
     }));
+
+    // Refresh reputation score after withdrawal (it should increase by +3 points)
+    const ngoInfo = JSON.parse(sessionStorage.getItem('ngo_info') || '{}');
+    if (ngoInfo.id) {
+      await fetchReputationScore(ngoInfo.id);
+      console.log('🔄 Reputation score refreshed after withdrawal');
+    }
 
     // Update NGO scoring - record withdrawal event
     try {
@@ -293,12 +333,15 @@ export default function NGODashboardPage() {
     } catch (error) {
       console.error('Error updating NGO score for withdrawal:', error);
     }
+    
+    // Trigger withdrawal tab refresh
+    setWithdrawalRefreshKey(prev => prev + 1);
   };
 
-  const getNetworkName = (chainId: string): string => {
+    const getNetworkName = (chainId: string): string => {
     const networks: { [key: string]: string } = {
       "0x1": "Ethereum Mainnet",
-      "0x5": "Goerli Testnet",
+      "0x5": "Goerli Testnet", 
       "0x11155111": "Sepolia Testnet",
       "0x89": "Polygon Mainnet",
       "0x13881": "Polygon Mumbai",
@@ -306,8 +349,11 @@ export default function NGODashboardPage() {
       "0xa4b1": "Arbitrum One",
       "0x38": "BSC Mainnet",
       "0x61": "BSC Testnet",
+      "0x439": "Blaze Sonic Labs Testnet",
+      "0x440": "Blaze Sonic Labs Mainnet",
+      "0xdede": "Blaze Sonic Labs",
     };
-    return networks[chainId] || `Unknown Network (${chainId})`;
+    return networks[chainId] || "Blaze Sonic Labs";
   };
 
   const getWalletBalance = async (address: string): Promise<string> => {
@@ -317,8 +363,8 @@ export default function NGODashboardPage() {
           method: "eth_getBalance",
           params: [address, "latest"],
         });
-        const ethBalance = parseInt(balance, 16) / Math.pow(10, 18);
-        return ethBalance.toFixed(4);
+        const sonicBalance = parseInt(balance, 16) / Math.pow(10, 18);
+        return sonicBalance.toFixed(4);
       }
       return "0.0000";
     } catch (error) {
@@ -536,7 +582,7 @@ export default function NGODashboardPage() {
                       </div>
                       <div className="flex items-center space-x-3 mt-1">
                         <span className="text-gray-600 font-semibold">
-                          {walletInfo?.balance} ETH
+                          {walletInfo?.balance} SONIC
                         </span>
                         <span className="text-xs text-gray-500">
                           {walletInfo?.network}
@@ -572,7 +618,7 @@ export default function NGODashboardPage() {
                 {isLoadingBalance ? (
                   <span className="animate-pulse">Loading...</span>
                 ) : (
-                  `${walletInfo?.balance} ETH`
+                  `${walletInfo?.balance} SONIC`
                 )}
               </div>
               <p className="text-xs text-blue-100 mt-1">
@@ -603,9 +649,21 @@ export default function NGODashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {ngoData.reputationScore}/100
+                {isLoadingReputation ? (
+                  <span className="animate-pulse">Loading...</span>
+                ) : (
+                  `${reputationScore}`
+                )}
               </div>
-              <p className="text-xs text-green-100 mt-1">Excellent standing</p>
+              <p className="text-xs text-green-100 mt-1">
+                {reputationScore >= 80 ? 'Excellent standing' : 
+                 reputationScore >= 60 ? 'Good standing' : 
+                 reputationScore >= 40 ? 'Fair standing' : 'Needs improvement'}
+              </p>
+              <p className="text-xs text-green-100 mt-2 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-green-300 rounded-full animate-pulse"></span>
+                Live score
+              </p>
             </CardContent>
           </Card>
 
@@ -636,7 +694,7 @@ export default function NGODashboardPage() {
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
             <TabsTrigger value="scoring">
               <Award className="w-4 h-4 mr-1" />
-              Transparency Score
+              Reputation Score
             </TabsTrigger>
           </TabsList>
 
@@ -657,7 +715,7 @@ export default function NGODashboardPage() {
           </TabsContent>
 
           <TabsContent value="withdrawals">
-            <WithdrawalsTab withdrawals={ngoData.withdrawals} />
+            <WithdrawalsTab key={withdrawalRefreshKey} withdrawals={ngoData.withdrawals} />
           </TabsContent>
 
           <TabsContent value="scoring">

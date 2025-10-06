@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,8 +34,40 @@ interface WithdrawalModalProps {
     amount: number;
     destination: string;
     txHash: string;
+    newBalance?: string;
   }) => void;
 }
+
+const checkCampaignConstraints = async () => {
+  try {
+    // Get NGO info from session
+    const ngoInfo = sessionStorage.getItem('ngo_info');
+    if (!ngoInfo) return { canWithdraw: false, violatingCampaigns: [], totalCampaigns: 0 };
+    
+    const ngo = JSON.parse(ngoInfo);
+    const ngoId = ngo.id || ngo.ngoId;
+    
+    // Use dedicated API endpoint for withdrawal constraint validation
+    const response = await fetch(`/api/ngo/withdrawal-constraints?ngoId=${ngoId}`);
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      console.error('Failed to check withdrawal constraints:', result.message);
+      return { canWithdraw: false, violatingCampaigns: [], totalCampaigns: 0 };
+    }
+    
+    return {
+      canWithdraw: result.canWithdraw,
+      violatingCampaigns: result.violatingCampaigns || [],
+      totalCampaigns: result.totalCampaigns || 0,
+      message: result.message
+    };
+    
+  } catch (error) {
+    console.error('Error checking campaign constraints:', error);
+    return { canWithdraw: false, violatingCampaigns: [], totalCampaigns: 0 };
+  }
+};
 
 export function WithdrawalModal({
   isOpen,
@@ -48,7 +80,19 @@ export function WithdrawalModal({
   const [recipientAddress, setRecipientAddress] = useState(
     walletInfo?.address || ""
   );
+  const [campaignConstraints, setCampaignConstraints] = useState<{
+    canWithdraw: boolean;
+    violatingCampaigns: any[];
+    totalCampaigns: number;
+  }>({ canWithdraw: true, violatingCampaigns: [], totalCampaigns: 0 });
   const [isProcessingWithdrawal, setIsProcessingWithdrawal] = useState(false);
+  
+  // Check campaign constraints when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      checkCampaignConstraints().then(setCampaignConstraints);
+    }
+  }, [isOpen]);
   const [withdrawalResult, setWithdrawalResult] = useState<{
     success: boolean;
     txHash: string;
@@ -79,20 +123,67 @@ export function WithdrawalModal({
       return;
     }
 
+    // Double-check campaign constraints before processing
+    const constraintCheck = await checkCampaignConstraints();
+    if (!constraintCheck.canWithdraw) {
+      alert("Cannot withdraw: Some campaigns need updates. Please add campaign updates or reports first.");
+      return;
+    }
+
     setIsProcessingWithdrawal(true);
 
     try {
-      // Simulate withdrawal processing
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Check if Web3 is available
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('MetaMask or Web3 wallet not detected');
+      }
 
-      // Generate mock transaction hash
-      const mockTxHash = `0x${Math.random().toString(16).substr(2, 64)}`;
+      // Get current accounts
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts'
+      });
 
-      // Mock success result
+      if (accounts.length === 0) {
+        throw new Error('No wallet accounts found');
+      }
+
+      const fromAddress = accounts[0];
+      
+      // Convert SONIC amount to Wei (18 decimals)
+      const amountInWei = BigInt(Math.floor(parseFloat(withdrawAmount) * 1e18)).toString(16);
+      
+      // Prepare transaction parameters
+      const transactionParameters = {
+        to: recipientAddress,
+        from: fromAddress,
+        value: '0x' + amountInWei,
+        gas: '0x5208', // 21000 gas limit for simple transfer
+        gasPrice: null, // Let wallet determine gas price
+      };
+
+      // Send the transaction
+      const txHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [transactionParameters],
+      });
+
+      if (!txHash) {
+        throw new Error('Transaction was rejected or failed');
+      }
+
+      // Record the withdrawal in our system
+      await recordWithdrawal({
+        amount: parseFloat(withdrawAmount),
+        destination: recipientAddress,
+        txHash: txHash,
+        fromAddress: fromAddress
+      });
+
+      // Success result with real transaction hash
       setWithdrawalResult({
         success: true,
-        txHash: mockTxHash,
-        message: `Successfully withdrew ${withdrawAmount} ETH to ${recipientAddress.slice(
+        txHash: txHash,
+        message: `Successfully withdrew ${withdrawAmount} SONIC to ${recipientAddress.slice(
           0,
           10
         )}...${recipientAddress.slice(-8)}`,
@@ -102,16 +193,90 @@ export function WithdrawalModal({
       onWithdrawalSuccess({
         amount: parseFloat(withdrawAmount),
         destination: recipientAddress,
-        txHash: mockTxHash,
+        txHash: txHash,
       });
-    } catch (error) {
+
+      // Update wallet balance after successful transaction
+      setTimeout(() => {
+        updateWalletBalance();
+      }, 2000); // Wait 2 seconds for blockchain confirmation
+
+    } catch (error: any) {
+      console.error('Withdrawal error:', error);
+      
+      let errorMessage = 'Withdrawal failed. Please try again.';
+      
+      if (error.code === 4001) {
+        errorMessage = 'Transaction was rejected by user.';
+      } else if (error.code === -32603) {
+        errorMessage = 'Insufficient funds for gas or transaction.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setWithdrawalResult({
         success: false,
         txHash: "",
-        message: "Withdrawal failed. Please try again.",
+        message: errorMessage,
       });
     } finally {
       setIsProcessingWithdrawal(false);
+    }
+  };
+
+  // Record withdrawal in our backend system
+  const recordWithdrawal = async (withdrawalData: {
+    amount: number;
+    destination: string; 
+    txHash: string;
+    fromAddress: string;
+  }) => {
+    try {
+      const ngoInfo = sessionStorage.getItem('ngo_info');
+      if (!ngoInfo) return;
+      
+      const ngo = JSON.parse(ngoInfo);
+      
+      await fetch('/api/ngo/withdrawals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ngoId: ngo.id,
+          ...withdrawalData,
+          timestamp: new Date().toISOString(),
+          currency: 'SONIC',
+          network: walletInfo?.network || 'Sonic Network'
+        })
+      });
+    } catch (error) {
+      console.error('Failed to record withdrawal:', error);
+    }
+  };
+
+  // Update wallet balance after successful withdrawal
+  const updateWalletBalance = async () => {
+    try {
+      if (typeof window.ethereum !== 'undefined' && walletInfo?.address) {
+        const balance = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [walletInfo.address, 'latest'],
+        });
+        const sonicBalance = parseInt(balance, 16) / Math.pow(10, 18); // Convert Wei to SONIC
+        
+        // Trigger a wallet info refresh in the parent component
+        if (typeof onWithdrawalSuccess === 'function') {
+          onWithdrawalSuccess({
+            amount: parseFloat(withdrawAmount),
+            destination: recipientAddress,
+            txHash: withdrawalResult?.txHash || '',
+            newBalance: sonicBalance.toFixed(4)
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update wallet balance:', error);
     }
   };
 
@@ -151,7 +316,7 @@ export function WithdrawalModal({
                     {walletInfo.address.slice(-8)}
                   </p>
                   <p className="text-xs text-blue-600">
-                    Balance: {walletInfo.balance} ETH
+                    Balance: {walletInfo.balance} SONIC
                   </p>
                   <p className="text-xs text-blue-600">
                     Network: {walletInfo.network}
@@ -167,14 +332,39 @@ export function WithdrawalModal({
                   Available Balance:
                 </span>
                 <span className="text-lg font-bold text-gray-900">
-                  {walletInfo?.balance} ETH
+                  {walletInfo?.balance} SONIC
                 </span>
               </div>
             </div>
 
+            {/* Campaign Constraints Warning */}
+            {!campaignConstraints.canWithdraw && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-red-800">Withdrawal Restricted</h4>
+                    <p className="text-sm text-red-600 mt-1">
+                      You have {campaignConstraints.violatingCampaigns.length} campaign(s) that haven't been updated for more than 7 days since creation.
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {campaignConstraints.violatingCampaigns.map((campaign: any) => (
+                        <div key={campaign.id} className="text-xs text-red-500 bg-red-100 px-2 py-1 rounded">
+                          <strong>{campaign.title}</strong> - {campaign.daysSinceCreation} days without updates
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-red-500 mt-2">
+                      Please add campaign updates or reports to enable withdrawals.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Withdrawal Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount">Withdrawal Amount (ETH)</Label>
+              <Label htmlFor="amount">Withdrawal Amount (SONIC)</Label>
               <Input
                 id="amount"
                 type="number"
@@ -183,15 +373,17 @@ export function WithdrawalModal({
                 onChange={(e) => setWithdrawAmount(e.target.value)}
                 step="0.0001"
                 min="0"
+                disabled={!campaignConstraints.canWithdraw}
               />
               <div className="flex justify-between text-xs text-gray-500">
-                <span>Min: 0.0001 ETH</span>
+                <span>Min: 0.0001 SONIC</span>
                 <button
                   type="button"
                   onClick={() => setWithdrawAmount(walletInfo?.balance || "0")}
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline disabled:text-gray-400"
+                  disabled={!campaignConstraints.canWithdraw}
                 >
-                  Max: {walletInfo?.balance} ETH
+                  Max: {walletInfo?.balance} SONIC
                 </button>
               </div>
             </div>
@@ -218,7 +410,7 @@ export function WithdrawalModal({
                   <p className="font-medium">Transaction Fee Notice</p>
                   <p>
                     Network gas fees will be deducted from your wallet.
-                    Estimated fee: ~0.002 ETH
+                    Estimated fee: ~0.002 SONIC
                   </p>
                 </div>
               </div>
@@ -261,7 +453,7 @@ export function WithdrawalModal({
                       Amount:
                     </span>
                     <span className="text-sm font-mono">
-                      {withdrawAmount} ETH
+                      {withdrawAmount} SONIC
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -284,19 +476,29 @@ export function WithdrawalModal({
                   </div>
                 </div>
 
-                {/* Etherscan Link */}
+                {/* Blaze Sonic Labs Explorer Link */}
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() =>
-                    window.open(
-                      `https://etherscan.io/tx/${withdrawalResult.txHash}`,
-                      "_blank"
-                    )
-                  }
+                  onClick={() => {
+                    const getExplorerUrl = (networkId: string, txHash: string) => {
+                      const explorers: { [key: string]: string } = {
+                        '0x1': `https://etherscan.io/tx/${txHash}`,
+                        '0x89': `https://polygonscan.com/tx/${txHash}`,
+                        '0x38': `https://bscscan.com/tx/${txHash}`,
+                        '0x439': `https://blaze.soniclabs.com/tx/${txHash}`, // Blaze Sonic Labs Testnet
+                        '0x440': `https://blaze.soniclabs.com/tx/${txHash}`, // Blaze Sonic Labs Mainnet
+                        '0xdede': `https://blaze.soniclabs.com/tx/${txHash}`, // Default Blaze Sonic
+                      };
+                      return explorers[networkId] || `https://blaze.soniclabs.com/tx/${txHash}`;
+                    };
+                    
+                    const explorerUrl = getExplorerUrl(walletInfo?.networkId || '0xdede', withdrawalResult.txHash);
+                    window.open(explorerUrl, "_blank");
+                  }}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  View on Etherscan
+                  View on Blaze Sonic Labs
                 </Button>
               </div>
             )}
@@ -314,19 +516,25 @@ export function WithdrawalModal({
                 disabled={
                   isProcessingWithdrawal ||
                   !withdrawAmount ||
-                  !recipientAddress
+                  !recipientAddress ||
+                  !campaignConstraints.canWithdraw
                 }
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {isProcessingWithdrawal ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                     Processing...
                   </>
+                ) : !campaignConstraints.canWithdraw ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Update Campaigns to Enable
+                  </>
                 ) : (
                   <>
                     <Download className="w-4 h-4 mr-2" />
-                    Withdraw Funds
+                    Withdraw {withdrawAmount} SONIC
                   </>
                 )}
               </Button>

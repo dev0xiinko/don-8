@@ -5,7 +5,9 @@ import path from 'path';
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
-    console.log('NGO Login attempt:', { email, password });
+    const inputEmail = (email || '').toString().trim().toLowerCase();
+    const inputPassword = (password || '').toString();
+    console.log('NGO Login attempt:', { email: inputEmail });
 
     // Load NGO applications from JSON file
     const filePath = path.join(process.cwd(), 'mock', 'ngo-applications.json');
@@ -36,12 +38,24 @@ export async function POST(req: Request) {
       console.log('First approved NGO credentials:', approvedWithCredentials[0].credentials);
     }
     
-    const approvedNgo = applications.find((app: any) => 
-      app.status === 'approved' && 
-      app.credentials && 
-      app.credentials.email === email && 
-      app.credentials.password === password
-    );
+    // Try to match against credentials, with email normalization.
+    let approvedNgo = applications.find((app: any) => {
+      if (app.status !== 'approved') return false;
+      const creds = app.credentials || {};
+      const storedEmail = (creds.email || app.email || '').toString().trim().toLowerCase();
+      const storedPassword = creds.password;
+      return storedEmail === inputEmail && storedPassword === inputPassword;
+    });
+
+    // Fallback: for approved NGOs missing credentials block (older records), allow login using registrationPassword
+    if (!approvedNgo) {
+      approvedNgo = applications.find((app: any) => {
+        if (app.status !== 'approved') return false;
+        const storedEmail = (app.email || '').toString().trim().toLowerCase();
+        const storedPassword = app.registrationPassword; // plaintext stored during registration
+        return storedEmail === inputEmail && storedPassword === inputPassword;
+      });
+    }
 
     console.log('Match found:', !!approvedNgo);
 

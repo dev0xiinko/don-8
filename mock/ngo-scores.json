@@ -1,101 +1,40 @@
 [
   {
-    "ngoId": 1,
-    "ngoName": "Web3 Cebu",
-    "currentScore": 100,
+    "ngoId": 8,
+    "ngoName": "Sheen Bangon",
+    "currentScore": 118,
     "maxScore": 100,
-    "totalWithdrawals": 1,
+    "totalWithdrawals": 3,
     "updatesOnTime": 0,
     "updatesLate": 0,
-    "lastUpdated": "2025-10-06T17:38:24.906Z",
+    "lastUpdated": "2025-10-06T19:01:07.571Z",
     "scoreHistory": [
       {
-        "date": "2025-10-06T17:38:24.906Z",
-        "type": "update",
-        "campaignId": "3",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T17:37:39.280Z",
-        "type": "update",
-        "campaignId": "3",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T16:50:03.352Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T16:49:39.688Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T16:33:03.565Z",
-        "type": "update",
-        "campaignId": "4",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T16:32:05.846Z",
-        "type": "update",
-        "campaignId": "4",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T16:11:00.320Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T15:40:39.613Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T15:12:21.744Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T15:01:14.454Z",
-        "type": "update",
-        "campaignId": "campaign_1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T15:00:09.976Z",
-        "type": "penalty_check",
-        "campaignId": "campaign_1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T14:59:39.540Z",
+        "date": "2025-10-06T19:01:07.571Z",
         "type": "withdrawal",
-        "campaignId": "campaign_1",
-        "withdrawalAmount": 500,
-        "scoreChange": 0,
-        "description": "Withdrawal of 500 SONIC from campaign campaign_1"
+        "campaignId": "general",
+        "withdrawalAmount": 0.1,
+        "scoreChange": 3,
+        "description": "Withdrawal of 0.1 SONIC from campaign general (+3 reputation points for active fund usage)"
       },
       {
-        "date": "2025-10-06T14:57:03.945Z",
+        "date": "2025-10-06T19:01:05.794Z",
+        "type": "withdrawal",
+        "campaignId": "general",
+        "withdrawalAmount": 0.1,
+        "scoreChange": 3,
+        "description": "Withdrawal of 0.1 SONIC from campaign general (+3 reputation points for active fund usage)"
+      },
+      {
+        "date": "2025-10-06T19:01:05.304Z",
+        "type": "withdrawal",
+        "campaignId": "general",
+        "withdrawalAmount": 0.1,
+        "scoreChange": 3,
+        "description": "Withdrawal of 0.1 SONIC from campaign general (+3 reputation points for active fund usage)"
+      },
+      {
+        "date": "2025-10-06T19:01:05.304Z",
         "type": "update",
         "scoreChange": 0,
         "description": "NGO score initialized at 100 points"
@@ -103,38 +42,31 @@
     ]
   },
   {
-    "ngoId": 6,
-    "ngoName": "William Marpa",
+    "ngoId": 9,
+    "ngoName": "Son Guko Foundation",
     "currentScore": 100,
     "maxScore": 100,
     "totalWithdrawals": 0,
     "updatesOnTime": 0,
     "updatesLate": 0,
-    "lastUpdated": "2025-10-06T16:57:06.457Z",
+    "lastUpdated": "2025-10-06T19:10:44.941Z",
     "scoreHistory": [
       {
-        "date": "2025-10-06T16:57:06.457Z",
-        "type": "update",
-        "campaignId": "1",
-        "scoreChange": 0,
-        "description": ""
-      },
-      {
-        "date": "2025-10-06T15:56:16.087Z",
+        "date": "2025-10-06T19:10:44.941Z",
         "type": "update",
         "campaignId": "2",
         "scoreChange": 0,
         "description": ""
       },
       {
-        "date": "2025-10-06T15:19:30.502Z",
-        "type": "penalty_check",
-        "campaignId": "all",
+        "date": "2025-10-06T19:10:29.580Z",
+        "type": "update",
+        "campaignId": "2",
         "scoreChange": 0,
         "description": ""
       },
       {
-        "date": "2025-10-06T15:18:55.626Z",
+        "date": "2025-10-06T19:10:29.571Z",
         "type": "update",
         "scoreChange": 0,
         "description": "NGO score initialized at 100 points"
