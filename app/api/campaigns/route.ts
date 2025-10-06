@@ -21,6 +21,35 @@ export async function GET(req: Request) {
       campaigns = [];
     }
 
+    // Enrich campaigns with comprehensive data from individual files
+    const enrichedCampaigns = campaigns.map((campaign: any) => {
+      try {
+        const comprehensiveFilePath = path.join(process.cwd(), 'mock', 'campaigns', `campaign_${campaign.id}.json`);
+        if (fs.existsSync(comprehensiveFilePath)) {
+          const comprehensiveData = JSON.parse(fs.readFileSync(comprehensiveFilePath, 'utf8'));
+          
+          // Merge comprehensive data with basic campaign data, prioritizing comprehensive stats
+          return {
+            ...campaign,
+            ...comprehensiveData,
+            // Use real-time stats from comprehensive file
+            raisedAmount: comprehensiveData.stats?.confirmedAmount || 0,
+            currentAmount: comprehensiveData.stats?.confirmedAmount || 0,
+            donorCount: comprehensiveData.stats?.donorCount || 0,
+            totalDonations: comprehensiveData.stats?.totalDonations || 0,
+            // Include donations array for transparency
+            donations: comprehensiveData.donations || []
+          };
+        }
+        return campaign;
+      } catch (error) {
+        console.warn(`Failed to load comprehensive data for campaign ${campaign.id}:`, error);
+        return campaign;
+      }
+    });
+
+    campaigns = enrichedCampaigns;
+
     // Filter campaigns
     let filteredCampaigns = campaigns.filter((campaign: any) => campaign.status === status);
 
@@ -52,12 +81,21 @@ export async function GET(req: Request) {
       }
     }
 
-    // Add progress percentage to each campaign
-    const campaignsWithProgress = filteredCampaigns.map((campaign: any) => ({
-      ...campaign,
-      progressPercentage: Math.min(100, Math.round((campaign.currentAmount / campaign.targetAmount) * 100)),
-      daysLeft: campaign.endDate ? Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null
-    }));
+    // Add progress percentage to each campaign using real donation data
+    const campaignsWithProgress = filteredCampaigns.map((campaign: any) => {
+      const raisedAmount = campaign.raisedAmount || campaign.currentAmount || 0;
+      const targetAmount = campaign.targetAmount || 1;
+      
+      return {
+        ...campaign,
+        progressPercentage: Math.min(100, Math.round((raisedAmount / targetAmount) * 100)),
+        daysLeft: campaign.endDate ? Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null,
+        // Ensure we have clean donation stats
+        raisedAmount,
+        donorCount: campaign.donorCount || 0,
+        totalDonations: campaign.totalDonations || 0
+      };
+    });
 
     return NextResponse.json({
       success: true,

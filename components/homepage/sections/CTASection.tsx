@@ -10,7 +10,7 @@ export function CTASection() {
           Join thousands of donors and NGOs already using DON-8 for transparent, efficient charitable giving
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/campaigns">
+          <Link href="/#campaigns">
             <Button size="lg" variant="secondary" className="bg-white text-emerald-600 hover:bg-gray-100">
               Start Donating Today
             </Button>

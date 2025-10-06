@@ -28,6 +28,8 @@ export interface Campaign {
   tags?: string[]
   urgencyLevel?: string
   images?: string[]
+  // Optional array of report metadata for transparency docs
+  reports?: any[]
   reportUrl?: string
 }
 

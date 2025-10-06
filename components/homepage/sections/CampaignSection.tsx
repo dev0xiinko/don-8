@@ -7,21 +7,58 @@ import { Progress } from "@/components/ui/progress"
 import { Clock, MapPin, Users, Target, ArrowRight } from 'lucide-react'
 import useAuthRedirect from "@/hooks/useAuthRedirect"
 import type { Campaign } from "@/lib/mock-data"
+import { SafeImage } from "@/components/ui/safe-image"
+import { preloadCampaignImages } from "@/lib/image-utils"
+
+// Enhanced campaign interface with real donation stats
+interface EnhancedCampaign extends Campaign {
+  totalDonations?: number
+  raisedAmount?: number
+}
 
 export function CampaignsSection() {
   const [filter, setFilter] = useState<'all' | 'urgent' | 'featured'>('all')
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [campaigns, setCampaigns] = useState<EnhancedCampaign[]>([])
   const [loading, setLoading] = useState(true)
   const { redirectToDonate, redirectToCampaigns } = useAuthRedirect()
   
-  // Fetch campaigns from API
+  // Fetch campaigns from comprehensive API with real stats
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const response = await fetch('/api/ngo/campaigns')
+        // Fetch all campaigns with comprehensive data (includes donations)
+        const response = await fetch('/api/campaigns')
         const result = await response.json()
         if (result.success) {
-          setCampaigns(result.campaigns)
+          // The API now returns enriched campaigns with real donation stats
+          const enrichedCampaigns = result.campaigns.map((campaign: any) => ({
+            ...campaign,
+            // Use the stats already calculated by the API from comprehensive files
+            raisedAmount: campaign.raisedAmount || 0,
+            currentAmount: campaign.currentAmount || campaign.raisedAmount || 0,
+            donorCount: campaign.donorCount || 0,
+            totalDonations: campaign.totalDonations || 0
+          }))
+          
+          setCampaigns(enrichedCampaigns)
+          
+          // Debug: Log campaign stats
+          console.log('Campaigns loaded with real stats:', enrichedCampaigns.length)
+          enrichedCampaigns.forEach((campaign: any, index: number) => {
+            console.log(`Campaign ${index + 1}:`, {
+              id: campaign.id,
+              title: campaign.title || campaign.name,
+              totalRaised: campaign.raisedAmount,
+              donorCount: campaign.donorCount,
+              totalDonations: campaign.totalDonations,
+              imageUrl: campaign.imageUrl
+            })
+          })
+          
+          // Preload campaign images for better performance
+          setTimeout(() => {
+            preloadCampaignImages(enrichedCampaigns)
+          }, 100)
         }
       } catch (error) {
         console.error('Error fetching campaigns:', error)
@@ -31,6 +68,10 @@ export function CampaignsSection() {
     }
     
     fetchCampaigns()
+    
+    // Auto-refresh every 10 seconds to keep donation stats current
+    const interval = setInterval(fetchCampaigns, 10000)
+    return () => clearInterval(interval)
   }, [])
   
   const filteredCampaigns = campaigns.filter(campaign => {
@@ -42,8 +83,8 @@ export function CampaignsSection() {
   const formatAmount = (amount: number) => {
     if (!amount || isNaN(amount)) return '0 SONIC'
     return `${new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
     }).format(amount)} SONIC`
   }
 
@@ -139,17 +180,11 @@ export function CampaignsSection() {
             {filteredCampaigns.map((campaign) => (
             <Card key={campaign.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
               <div className="relative">
-                <img
-                  src={
-                    (campaign.images && campaign.images.length > 0) 
-                      ? campaign.images[0]
-                      : campaign.imageUrl || campaign.image || "/flood.png"
-                  }
-                  alt={campaign.title || 'Campaign Image'}
+                <SafeImage
+                  campaign={campaign}
+                  alt={campaign.title || campaign.name || 'Campaign Image'}
                   className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  onError={(e) => {
-                    e.currentTarget.src = '/flood.png';
-                  }}
+                  fallback="/flood.png"
                 />
                 <div className="absolute top-4 left-4 flex gap-2">
                   {campaign.urgencyLevel === 'urgent' && (
@@ -233,21 +268,27 @@ export function CampaignsSection() {
                   </div>
                 )}
 
-                {/* Stats */}
+                {/* Stats - Real donation data */}
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Users className="w-4 h-4" />
-                    <span>{campaign.donorCount} donors</span>
+                    <span>{campaign.donorCount || 0} donors</span>
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {campaign.endDate ? (() => {
-                        const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                        return daysLeft > 0 ? `${daysLeft} days left` : 'Campaign ended';
-                      })() : 'Ongoing'}
-                    </span>
+                    <Target className="w-4 h-4" />
+                    <span>{campaign.totalDonations || 0} donations</span>
                   </div>
+                </div>
+                
+                {/* Time remaining */}
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    {campaign.endDate ? (() => {
+                      const daysLeft = Math.max(0, Math.ceil((new Date(campaign.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                      return daysLeft > 0 ? `${daysLeft} days left` : 'Campaign ended';
+                    })() : 'Ongoing campaign'}
+                  </span>
                 </div>
 
                 {/* Action Button */}
@@ -262,21 +303,6 @@ export function CampaignsSection() {
             </Card>
           ))}
           </div>
-        )}
-
-        {/* View All Button - Only show if not loading */}
-        {!loading && (
-        <div className="text-center">
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="group"
-            onClick={redirectToCampaigns}
-          >
-            View All Campaigns
-            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </div>
         )}
       </div>
     </section>

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import type { Campaign } from "@/lib/mock-data"
 import { FileText, Upload, CheckCircle2, Clock } from "lucide-react"
 import { SafeImage } from "@/components/ui/safe-image"
+import { NGOScoreMini } from "./ngo-score-mini"
 
 interface CampaignCardProps {
   campaign: Campaign
@@ -54,11 +55,7 @@ export function CampaignCard({ campaign, onReportUpload }: CampaignCardProps) {
       {((campaign.images && campaign.images.length > 0) || campaign.imageUrl || campaign.image) && (
         <div className="relative h-48 w-full overflow-hidden">
           <SafeImage
-            src={
-              (campaign.images && campaign.images.length > 0) 
-                ? campaign.images[0] 
-                : campaign.imageUrl || campaign.image
-            } 
+            campaign={campaign}
             alt={campaign.title || campaign.name || "Campaign"} 
             className="h-full w-full object-cover transition-transform hover:scale-105" 
           />
@@ -98,13 +95,22 @@ export function CampaignCard({ campaign, onReportUpload }: CampaignCardProps) {
       <CardContent className="flex-1 space-y-4">
         {/* NGO Information */}
         {campaign.ngoName && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium text-primary">{campaign.ngoName}</span>
-            {campaign.location && (
-              <>
-                <span>•</span>
-                <span>{campaign.location}</span>
-              </>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium text-primary">{campaign.ngoName}</span>
+              {campaign.location && (
+                <>
+                  <span>•</span>
+                  <span>{campaign.location}</span>
+                </>
+              )}
+            </div>
+            {campaign.ngoId && (
+              <NGOScoreMini 
+                ngoId={campaign.ngoId} 
+                ngoName={campaign.ngoName}
+                className="w-fit"
+              />
             )}
           </div>
         )}

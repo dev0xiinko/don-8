@@ -90,8 +90,37 @@ export async function POST(req: Request) {
     // Add to campaigns array
     campaigns.push(newCampaign);
 
-    // Save back to file
+    // Save to main campaigns file
     fs.writeFileSync(filePath, JSON.stringify(campaigns, null, 2));
+
+    // Create comprehensive campaign file with proper structure
+    const comprehensiveCampaign = {
+      ...newCampaign,
+      stats: {
+        totalDonations: 0,
+        totalAmount: 0,
+        confirmedAmount: 0,
+        pendingAmount: 0,
+        donorCount: 0,
+        uniqueDonors: 0,
+        lastDonationAt: null
+      },
+      donations: [],
+      updates: newCampaign.updates || [],
+      reports: [],
+      withdrawals: []
+    };
+
+    // Save comprehensive campaign file
+    const comprehensiveDir = path.join(process.cwd(), 'mock', 'campaigns');
+    if (!fs.existsSync(comprehensiveDir)) {
+      fs.mkdirSync(comprehensiveDir, { recursive: true });
+    }
+    
+    const comprehensiveFile = path.join(comprehensiveDir, `campaign_${newId}.json`);
+    fs.writeFileSync(comprehensiveFile, JSON.stringify(comprehensiveCampaign, null, 2));
+
+    console.log(`✅ Created campaign ${newId} in both campaigns.json and comprehensive file`);
 
     return NextResponse.json({
       success: true,

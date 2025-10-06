@@ -13,40 +13,94 @@ import {
   Users,
   DollarSign
 } from "lucide-react"
-import { DonationStorageManager, DonationRecord } from "@/lib/donation-storage"
+// Remove legacy donation storage import
+interface DonationRecord {
+  id: string
+  txHash: string
+  amount: string
+  currency: string
+  timestamp: string
+  status: 'pending' | 'confirmed' | 'failed'
+  blockNumber?: number
+  gasUsed?: string
+  explorerUrl: string
+  donorAddress: string
+  message?: string
+  anonymous?: boolean
+  networkName?: string
+  confirmationTime?: string
+}
 
 interface CampaignDonationsProps {
   campaignId: string
   refreshKey?: number
+  onTotalUpdate?: (total: number) => void
 }
 
-export function CampaignDonations({ campaignId, refreshKey }: CampaignDonationsProps) {
+export function CampaignDonations({ campaignId, refreshKey, onTotalUpdate }: CampaignDonationsProps) {
   const [donations, setDonations] = useState<DonationRecord[]>([])
   const [stats, setStats] = useState({
     totalDonations: 0,
     totalAmount: 0,
     confirmedDonations: 0,
     pendingDonations: 0,
-    uniqueDonors: 0
+    uniqueDonors: 0,
+    totalSonic: 0
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  const donationManager = DonationStorageManager.getInstance()
-
   const loadDonations = async (forceRefresh = false) => {
     try {
-      const campaignDonations = await donationManager.getCampaignDonations(campaignId, forceRefresh)
-      const campaignStats = await donationManager.getCampaignStats(campaignId)
+      console.log(`🔄 Loading donations from comprehensive API for campaign ${campaignId}`, forceRefresh ? '(force refresh)' : '')
       
-      setDonations(campaignDonations)
-      setStats(campaignStats)
+      // Fetch from comprehensive campaign API for accurate, real-time data
+      const response = await fetch(`/api/campaigns/${campaignId}`)
+      const result = await response.json()
       
-      if (forceRefresh) {
-        console.log(`Refreshed ${campaignDonations.length} donations from server for campaign ${campaignId}`)
+      if (result.success && result.campaign) {
+        const campaignData = result.campaign
+        const campaignDonations = campaignData.donations || []
+        const campaignStats = campaignData.stats || {}
+        
+        console.log(`✅ Loaded ${campaignDonations.length} donations from comprehensive API`)
+        console.log(`💰 Confirmed amount: ${campaignStats.confirmedAmount || 0} SONIC`)
+        
+        // Calculate real-time stats from fresh data
+        const confirmedDonations = campaignDonations.filter((d: any) => d.status === 'confirmed')
+        const pendingDonations = campaignDonations.filter((d: any) => d.status === 'pending')
+        const uniqueDonors = new Set(campaignDonations.map((d: any) => d.donorAddress?.toLowerCase()).filter(Boolean)).size
+        const totalSonic = campaignStats.confirmedAmount || 0
+        
+        setDonations(campaignDonations)
+        setStats({
+          totalDonations: campaignDonations.length,
+          totalAmount: totalSonic,
+          confirmedDonations: confirmedDonations.length,
+          pendingDonations: pendingDonations.length,
+          uniqueDonors,
+          totalSonic
+        })
+        
+        // Notify parent component of accurate total
+        if (onTotalUpdate) {
+          onTotalUpdate(totalSonic)
+        }
+        
+        console.log(`📊 Updated stats:`, {
+          total: campaignDonations.length,
+          confirmed: confirmedDonations.length,
+          pending: pendingDonations.length,
+          totalSonic: totalSonic.toFixed(4),
+          uniqueDonors
+        })
+        
+      } else {
+        console.error('❌ Failed to load campaign data:', result.error)
       }
+      
     } catch (error) {
-      console.error('Error loading donations:', error)
+      console.error('❌ Error loading donations from API:', error)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -61,10 +115,18 @@ export function CampaignDonations({ campaignId, refreshKey }: CampaignDonationsP
   useEffect(() => {
     loadDonations()
     
-    // Auto-refresh every 30 seconds to check for status updates
-    const interval = setInterval(loadDonations, 30000)
+    // Auto-refresh every 5 seconds for real-time updates
+    const interval = setInterval(() => loadDonations(false), 5000)
     return () => clearInterval(interval)
   }, [campaignId, refreshKey])
+  
+  // Force refresh when refreshKey changes (indicates new donation)
+  useEffect(() => {
+    if (refreshKey && refreshKey > 0) {
+      console.log('🔄 Force refreshing due to refreshKey change:', refreshKey)
+      loadDonations(true)
+    }
+  }, [refreshKey])
 
   if (loading) {
     return (
@@ -100,21 +162,29 @@ export function CampaignDonations({ campaignId, refreshKey }: CampaignDonationsP
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{stats.totalDonations}</div>
-              <div className="text-xs text-gray-600">Total Donations</div>
+          {/* Main Total SONIC Display */}
+          <div className="mb-6 p-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl text-white">
+            <div className="text-center">
+              <div className="text-4xl font-bold mb-2">
+                {stats.totalSonic.toFixed(4)} SONIC
+              </div>
+              <div className="text-green-100 text-lg">
+                Total Raised from {stats.totalDonations} Donations
+              </div>
+              <div className="text-green-200 text-sm mt-2">
+                Real-time blockchain transparency • Updated every confirmation
+              </div>
             </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalAmount.toFixed(4)}</div>
-              <div className="text-xs text-gray-600">SONIC Raised</div>
-            </div>
+          </div>
+
+          {/* Detailed Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{stats.confirmedDonations}</div>
+              <div className="text-xl font-bold text-green-600">{stats.confirmedDonations}</div>
               <div className="text-xs text-gray-600">Confirmed</div>
             </div>
             <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pendingDonations}</div>
+              <div className="text-xl font-bold text-yellow-600">{stats.pendingDonations}</div>
               <div className="text-xs text-gray-600">{stats.pendingDonations > 0 ? 'Processing' : 'Pending'}</div>
               {stats.pendingDonations > 0 && (
                 <div className="flex items-center justify-center mt-1">
@@ -123,8 +193,12 @@ export function CampaignDonations({ campaignId, refreshKey }: CampaignDonationsP
               )}
             </div>
             <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">{stats.uniqueDonors}</div>
+              <div className="text-xl font-bold text-purple-600">{stats.uniqueDonors}</div>
               <div className="text-xs text-gray-600">Unique Donors</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-xl font-bold text-blue-600">{(stats.totalSonic / (stats.totalDonations || 1)).toFixed(4)}</div>
+              <div className="text-xs text-gray-600">Avg Donation</div>
             </div>
           </div>
         </CardContent>

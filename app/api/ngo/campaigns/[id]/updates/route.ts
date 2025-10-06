@@ -55,6 +55,29 @@ export async function POST(
 
     // Save back to file
     fs.writeFileSync(filePath, JSON.stringify(campaigns, null, 2));
+    
+    // Also update comprehensive campaign data if it exists
+    try {
+      const comprehensivePath = path.join(process.cwd(), 'mock', 'campaigns', `campaign_${campaignId}.json`);
+      if (fs.existsSync(comprehensivePath)) {
+        const comprehensiveContent = fs.readFileSync(comprehensivePath, 'utf8');
+        const comprehensiveData = JSON.parse(comprehensiveContent);
+        
+        // Add update to comprehensive data
+        if (!comprehensiveData.updates) {
+          comprehensiveData.updates = [];
+        }
+        comprehensiveData.updates.unshift(newUpdate);
+        comprehensiveData.lastUpdated = new Date().toISOString();
+        
+        // Save comprehensive data
+        fs.writeFileSync(comprehensivePath, JSON.stringify(comprehensiveData, null, 2));
+        console.log(`✅ Updated comprehensive campaign data for campaign ${campaignId}`);
+      }
+    } catch (comprehensiveError) {
+      console.error('Error updating comprehensive campaign data:', comprehensiveError);
+      // Don't fail the request if comprehensive update fails
+    }
 
     return NextResponse.json({
       success: true,

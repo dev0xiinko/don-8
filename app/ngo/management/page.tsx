@@ -10,12 +10,14 @@ import { CampaignsTab } from "@/app/ngo/tabs/campaign-tab";
 import { TransactionsTab } from "@/app/ngo/tabs/transaction-tab";
 import { WithdrawalsTab } from "@/app/ngo/tabs/withdrawals-tab";
 import { WithdrawalModal } from "@/app/ngo/tabs/withdrawals-modal";
+import NGOScoring from "@/components/ngo-scoring";
 import { mockNGOData, type Campaign } from "@/lib/mock-data";
 import {
   Heart,
   TrendingUp,
   Wallet,
   Download,
+  Award,
 } from "lucide-react";
 import { getBalanceFromAddress } from "@/lib/metamask";
 
@@ -45,8 +47,12 @@ export default function NGODashboardPage() {
         if (ngoLoggedIn === 'true' && ngoInfo) {
           try {
             const parsedNgoInfo = JSON.parse(ngoInfo);
+            console.log('🏢 NGO Session Info:', parsedNgoInfo);
             setNgoData(parsedNgoInfo);
-            fetchNgoCampaigns(parsedNgoInfo.id);
+            // Use the correct ID field from session
+            const ngoId = parsedNgoInfo.id || parsedNgoInfo.ngoId;
+            console.log(`🔍 Using NGO ID for campaign fetch: ${ngoId}`);
+            fetchNgoCampaigns(ngoId);
           } catch (error) {
             console.error('Error parsing NGO info:', error);
             // Redirect to login if data is corrupted
@@ -66,13 +72,17 @@ export default function NGODashboardPage() {
   // Fetch campaigns for the specific NGO
   const fetchNgoCampaigns = async (ngoId: number) => {
     try {
+      console.log(`🔄 Fetching campaigns for NGO ID: ${ngoId}`);
       const response = await fetch(`/api/ngo/campaigns?ngoId=${ngoId}`);
       const result = await response.json();
       if (result.success) {
+        console.log(`✅ Found ${result.campaigns.length} campaigns for NGO ${ngoId}:`, result.campaigns);
         setCampaigns(result.campaigns);
+      } else {
+        console.error('❌ Failed to fetch campaigns:', result);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
+      console.error('❌ Error fetching campaigns:', error);
     }
   };
 
@@ -117,11 +127,13 @@ export default function NGODashboardPage() {
       const result = await response.json();
 
       if (result.success) {
-        // Refresh the campaigns list
-        await fetchNgoCampaigns(ngoData.id);
-        console.log('Campaign created successfully:', result.campaign);
+        console.log('✅ Campaign created successfully:', result.campaign);
+        // Refresh the campaigns list using the correct ID
+        const ngoId = ngoData.id || ngoData.ngoId;
+        await fetchNgoCampaigns(ngoId);
+        console.log('🔄 Campaign list refreshed after creation');
       } else {
-        console.error('Failed to create campaign:', result.message);
+        console.error('❌ Failed to create campaign:', result.message);
       }
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -130,23 +142,109 @@ export default function NGODashboardPage() {
     alert("Campaign created successfully!");
   };
 
-  const handleReportUpload = (campaignId: string, file: File) => {
-    setNgoData((prev: any) => ({
-      ...prev,
-      campaigns: prev?.campaigns?.map((campaign: any) =>
-        campaign.id === campaignId
-          ? { ...campaign, reportUrl: `/reports/${file.name}` }
-          : campaign
-      ) || [],
-    }));
+  const handleReportUpload = async (campaignId: string, file: File, reportType?: string, description?: string) => {
+    try {
+      const formData = new FormData()
+      formData.append('report', file)
+      formData.append('reportType', reportType || 'progress')
+      formData.append('description', description || '')
 
-    alert(`Report "${file.name}" uploaded successfully!`);
+      const response = await fetch(`/api/campaigns/${campaignId}/reports`, {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Update campaign's lastUpdated timestamp to trigger real-time updates on campaign page
+        try {
+          await fetch(`/api/campaigns/${campaignId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'update_timestamp',
+              source: 'report_upload',
+              reportName: file.name
+            })
+          })
+        } catch (timestampError) {
+          console.error('Error updating campaign timestamp:', timestampError)
+        }
+        
+        // Refresh the campaigns list to show the new report
+        if (ngoData?.id) {
+          await fetchNgoCampaigns(ngoData.id)
+        }
+        
+        alert(`Report "${file.name}" uploaded successfully!`)
+        
+        // Update NGO scoring for posting a report (counts as an update)
+        try {
+          await fetch('/api/ngo-scores', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ngoId: ngoData.id,
+              type: 'update',
+              campaignId: campaignId,
+              updateTitle: `Report Upload: ${file.name}`,
+              updateContent: `Uploaded ${reportType || 'progress'} report: ${description || file.name}`
+            })
+          })
+        } catch (scoreError) {
+          console.error('Error updating NGO score for report upload:', scoreError)
+        }
+      } else {
+        alert(`Failed to upload report: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Error uploading report:', error)
+      alert('Failed to upload report. Please try again.')
+    }
   };
 
   const handleUpdateAdded = async (campaignId: string | number) => {
+    // Update campaign's lastUpdated timestamp to trigger real-time updates on campaign page
+    try {
+      await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'update_timestamp',
+          source: 'campaign_update'
+        })
+      })
+    } catch (timestampError) {
+      console.error('Error updating campaign timestamp:', timestampError)
+    }
+
     // Refresh the campaigns to get the latest updates
     if (ngoData?.id) {
       await fetchNgoCampaigns(ngoData.id);
+    }
+
+    // Update NGO scoring - record update event
+    try {
+      await fetch('/api/ngo-scores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ngoId: ngoData.id,
+          type: 'update',
+          campaignId: campaignId.toString()
+        })
+      });
+    } catch (error) {
+      console.error('Error updating NGO score for campaign update:', error);
     }
   };
 
@@ -158,7 +256,7 @@ export default function NGODashboardPage() {
     setIsWithdrawModalOpen(true);
   };
 
-  const handleWithdrawalSuccess = (withdrawalData: any) => {
+  const handleWithdrawalSuccess = async (withdrawalData: any) => {
     setWalletBalance((prev) =>
       prev ? prev - withdrawalData.amount : 0
     );
@@ -176,6 +274,25 @@ export default function NGODashboardPage() {
       ...prev,
       withdrawals: [newWithdrawal, ...(prev?.withdrawals ?? [])],
     }));
+
+    // Update NGO scoring - record withdrawal event
+    try {
+      await fetch('/api/ngo-scores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ngoId: ngoData.id,
+          type: 'withdrawal',
+          campaignId: withdrawalData.campaignId || 'general', // Can be passed from withdrawal modal
+          withdrawalAmount: withdrawalData.amount,
+          txHash: withdrawalData.txHash
+        })
+      });
+    } catch (error) {
+      console.error('Error updating NGO score for withdrawal:', error);
+    }
   };
 
   const getNetworkName = (chainId: string): string => {
@@ -512,11 +629,15 @@ export default function NGODashboardPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="campaigns" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="create">Create Campaign</TabsTrigger>
             <TabsTrigger value="campaigns">Campaign List</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+            <TabsTrigger value="scoring">
+              <Award className="w-4 h-4 mr-1" />
+              Transparency Score
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="create">
@@ -537,6 +658,13 @@ export default function NGODashboardPage() {
 
           <TabsContent value="withdrawals">
             <WithdrawalsTab withdrawals={ngoData.withdrawals} />
+          </TabsContent>
+
+          <TabsContent value="scoring">
+            <NGOScoring 
+              ngoId={ngoData.id} 
+              ngoName={ngoData.organizationName} 
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Calendar, Type, Image, MessageSquare } from "lucide-react"
+import { SafeImage } from "@/components/ui/safe-image"
 
 interface CampaignUpdate {
   id: number
@@ -215,11 +216,12 @@ export function CampaignUpdatesList({ updates }: CampaignUpdatesListProps) {
               {update.images && update.images.length > 0 && (
                 <div className="mt-3 flex gap-2">
                   {update.images.slice(0, 3).map((image, idx) => (
-                    <img
+                    <SafeImage
                       key={idx}
                       src={image}
                       alt={`Update ${idx + 1}`}
                       className="w-16 h-16 object-cover rounded border"
+                      fallback="/flood.png"
                     />
                   ))}
                   {update.images.length > 3 && (

@@ -35,24 +35,76 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
   const [imageUrl, setImageUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name || !description || !targetAmount || !endDate) {
       alert("Please fill in all required fields");
       return;
     }
 
-        // Handle image - use blob storage for consistent storage
-    let finalImageUrl = "";
-    let blobImages: string[] = [];
+  // Handle image - ensure proper storage for homepage access
+  // Use stable data URL (base64) or a remote URL, avoid ephemeral blob: URLs and localStorage-only keys
+  let finalImageUrl = "";
+  let blobImages: string[] = [];
     
-    if (imageFile) {
-      // Store file using blob storage system
-      finalImageUrl = storeImageBlob(imageFile);
-      blobImages = [finalImageUrl];
-    } else if (imageUrl) {
-      // Store URL using blob storage system
-      finalImageUrl = storeImageBlob(imageUrl, "campaign-image");
-      blobImages = [finalImageUrl];
+    try {
+      if (imageFile) {
+        // Convert file to base64 for reliable storage across sessions and devices
+        const base64String = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+
+        // Optionally keep a localStorage backup, but prefer embedding the base64 directly
+        try {
+          const imageKey = `campaign_image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem(imageKey, base64String);
+          // Keep both for compatibility; base64 will be preferred by image utils
+          blobImages = [base64String, imageKey];
+        } catch (lsError) {
+          blobImages = [base64String];
+        }
+
+        // Use the base64 as the canonical image URL
+        finalImageUrl = base64String;
+
+        // Avoid relying on blob: URLs which are session-scoped and can break on reload
+        try {
+          storeImageBlob(imageFile);
+        } catch (blobError) {
+          console.warn('Blob storage backup failed (safe to ignore):', blobError);
+        }
+
+      } else if (imageUrl) {
+        // For URL images, validate first
+        await new Promise<void>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Invalid image URL'));
+          img.src = imageUrl;
+        });
+        // Use direct URL for immediate access and cross-device persistence
+        finalImageUrl = imageUrl;
+        blobImages = [imageUrl];
+        // Optional: keep a localStorage reference as a fallback
+        try {
+          const imageKey = `campaign_image_url_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem(imageKey, imageUrl);
+          blobImages.push(imageKey);
+        } catch {}
+      }
+    } catch (error) {
+      console.error('Error processing image:', error);
+      // Fallback handling
+      if (imageFile) {
+        // As a last resort, fall back to a temporary blob URL (may not persist across reloads)
+        finalImageUrl = URL.createObjectURL(imageFile);
+        blobImages = [finalImageUrl];
+      } else if (imageUrl) {
+        finalImageUrl = imageUrl;
+        blobImages = [imageUrl];
+      }
     }
 
     const campaignData = {
@@ -67,13 +119,34 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
       urgent, // Keep original urgent field
       urgencyLevel: urgent ? "urgent" : "normal",
       donorCount: 0,
-      imageUrl: finalImageUrl,
-      images: blobImages,
+  imageUrl: finalImageUrl,
+  image: finalImageUrl, // Ensure both fields are set for compatibility
+  images: blobImages, // Prefer base64 or remote URL entries first
       category: "Emergency Relief", // Default category
       location: "Philippines", // Default location
       beneficiaries: 0,
       tags: urgent ? ["urgent", "emergency"] : [],
+      // Add metadata for image handling
+      imageType: imageFile ? 'file' : imageUrl ? 'url' : 'none',
+      imageStorageKeys: blobImages,
     };
+
+    console.log('Campaign data created:', {
+      ...campaignData,
+      imageUrl: finalImageUrl,
+      imageStorageKeys: blobImages
+    });
+
+    // Ensure the image is properly accessible
+    if (finalImageUrl) {
+      console.log('Image stored successfully:', {
+        imageUrl: finalImageUrl,
+        isLocalStorageKey: finalImageUrl.startsWith('campaign_image_'),
+        isURL: finalImageUrl.startsWith('http') || finalImageUrl.startsWith('/'),
+        isBase64: finalImageUrl.startsWith('data:'),
+        storageKeys: blobImages
+      });
+    }
 
     onCampaignCreate(campaignData);
 
@@ -198,7 +271,7 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
                       alt="Campaign preview"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.currentTarget.src = "https://via.placeholder.com/400x300?text=Invalid+Image";
+                        e.currentTarget.src = "/flood.png";
                       }}
                     />
                   </div>
@@ -209,7 +282,7 @@ export function CreateCampaignForm({ onCampaignCreate }: CreateCampaignFormProps
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="targetAmount">Target Amount (ETH) *</Label>
+              <Label htmlFor="targetAmount">Target Amount (SONIC) *</Label>
               <Input
                 id="targetAmount"
                 type="number"

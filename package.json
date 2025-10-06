@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clear-campaigns": "./scripts/campaign-manager.sh clear",
+    "backup-data": "./scripts/campaign-manager.sh backup",
+    "restore-data": "./scripts/campaign-manager.sh restore",
+    "data-status": "./scripts/campaign-manager.sh status"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

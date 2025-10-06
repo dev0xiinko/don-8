@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "./providers"
 import FloatingHealthIndicator from "@/components/floating-health-indicator"
+import AutoMigrationHandler from "@/components/auto-migration"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,6 +24,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <FloatingHealthIndicator />
+          <AutoMigrationHandler />
         </Providers>
       </body>
     </html>

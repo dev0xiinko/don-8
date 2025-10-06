@@ -1,0 +1,144 @@
+[
+  {
+    "ngoId": 1,
+    "ngoName": "Web3 Cebu",
+    "currentScore": 100,
+    "maxScore": 100,
+    "totalWithdrawals": 1,
+    "updatesOnTime": 0,
+    "updatesLate": 0,
+    "lastUpdated": "2025-10-06T17:38:24.906Z",
+    "scoreHistory": [
+      {
+        "date": "2025-10-06T17:38:24.906Z",
+        "type": "update",
+        "campaignId": "3",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T17:37:39.280Z",
+        "type": "update",
+        "campaignId": "3",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T16:50:03.352Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T16:49:39.688Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T16:33:03.565Z",
+        "type": "update",
+        "campaignId": "4",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T16:32:05.846Z",
+        "type": "update",
+        "campaignId": "4",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T16:11:00.320Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:40:39.613Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:12:21.744Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:01:14.454Z",
+        "type": "update",
+        "campaignId": "campaign_1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:00:09.976Z",
+        "type": "penalty_check",
+        "campaignId": "campaign_1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T14:59:39.540Z",
+        "type": "withdrawal",
+        "campaignId": "campaign_1",
+        "withdrawalAmount": 500,
+        "scoreChange": 0,
+        "description": "Withdrawal of 500 SONIC from campaign campaign_1"
+      },
+      {
+        "date": "2025-10-06T14:57:03.945Z",
+        "type": "update",
+        "scoreChange": 0,
+        "description": "NGO score initialized at 100 points"
+      }
+    ]
+  },
+  {
+    "ngoId": 6,
+    "ngoName": "William Marpa",
+    "currentScore": 100,
+    "maxScore": 100,
+    "totalWithdrawals": 0,
+    "updatesOnTime": 0,
+    "updatesLate": 0,
+    "lastUpdated": "2025-10-06T16:57:06.457Z",
+    "scoreHistory": [
+      {
+        "date": "2025-10-06T16:57:06.457Z",
+        "type": "update",
+        "campaignId": "1",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:56:16.087Z",
+        "type": "update",
+        "campaignId": "2",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:19:30.502Z",
+        "type": "penalty_check",
+        "campaignId": "all",
+        "scoreChange": 0,
+        "description": ""
+      },
+      {
+        "date": "2025-10-06T15:18:55.626Z",
+        "type": "update",
+        "scoreChange": 0,
+        "description": "NGO score initialized at 100 points"
+      }
+    ]
+  }
+]

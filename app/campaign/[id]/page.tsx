@@ -15,8 +15,9 @@ import {
   ArrowLeft, Heart, MapPin, CheckCircle, ExternalLink, Clock, DollarSign, RefreshCw, FileText, Facebook, Twitter, Users, Calendar, History
 } from "lucide-react"
 import { SafeImage } from "@/components/ui/safe-image"
-import { DonationStorageManager, DonationRecord } from "@/lib/donation-storage"
 import { CampaignDonations } from "@/components/campaign-donations"
+import { DonorCampaignUpdates } from "@/components/donor-campaign-updates"
+import { CampaignReports } from "@/components/campaign-reports"
 
 interface DonationHistory {
   id: string
@@ -28,6 +29,7 @@ interface DonationHistory {
   blockNumber?: number
   gasUsed?: string
   explorerUrl: string
+  walletAddress?: string
 }
 
 interface NetworkInfo {
@@ -38,14 +40,33 @@ interface NetworkInfo {
   rpcUrl: string
 }
 
+// Force-only Sonic Blaze Testnet
 const SUPPORTED_NETWORKS: { [key: number]: NetworkInfo } = {
-  1: { chainId: 1, name: 'Ethereum Mainnet', currency: 'ETH', explorer: 'https://etherscan.io', rpcUrl: 'https://mainnet.infura.io/v3/' },
-  11155111: { chainId: 11155111, name: 'Sepolia Testnet', currency: 'SepoliaETH', explorer: 'https://sepolia.etherscan.io', rpcUrl: 'https://sepolia.infura.io/v3/' },
-  137: { chainId: 137, name: 'Polygon Mainnet', currency: 'MATIC', explorer: 'https://polygonscan.com', rpcUrl: 'https://polygon-rpc.com/' },
-  80001: { chainId: 80001, name: 'Mumbai Testnet', currency: 'MATIC', explorer: 'https://mumbai.polygonscan.com', rpcUrl: 'https://rpc-mumbai.maticvigil.com/' },
-  56: { chainId: 56, name: 'BSC Mainnet', currency: 'BNB', explorer: 'https://bscscan.com', rpcUrl: 'https://bsc-dataseed1.binance.org/' },
-  97: { chainId: 97, name: 'BSC Testnet', currency: 'tBNB', explorer: 'https://testnet.bscscan.com', rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545/' },
   64165: { chainId: 64165, name: 'Sonic Blaze Testnet', currency: 'SONIC', explorer: 'https://blaze.soniclabs.com', rpcUrl: 'https://rpc.blaze.soniclabs.com' }
+}
+
+// Ensure wallet is on Sonic Blaze Testnet (64165 / 0xFAA5).
+// We ONLY switch if needed; we do not attempt to add the chain.
+const ensureSonicNetwork = async (): Promise<NetworkInfo | null> => {
+  if (typeof window === 'undefined' || !(window as any).ethereum) return SUPPORTED_NETWORKS[64165]
+  const ethereum = (window as any).ethereum
+  const sonic = SUPPORTED_NETWORKS[64165]
+  const sonicHex = '0xFAA5' // 64165
+
+  try {
+    // Only switch if not already on Sonic
+    const currentChainId = await ethereum.request({ method: 'eth_chainId' })
+    if (String(currentChainId).toLowerCase() !== sonicHex.toLowerCase()) {
+      await ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: sonicHex }]
+      })
+    }
+  } catch (switchErr: any) {
+    console.error('Failed to switch to Sonic Blaze Testnet (no add attempt):', switchErr)
+    return null
+  }
+  return sonic
 }
 
 export default function DonatePage() {
@@ -62,28 +83,60 @@ export default function DonatePage() {
   const [campaign, setCampaign] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [campaignDonationsRefresh, setCampaignDonationsRefresh] = useState(0)
+  const [realTimeDonationTotal, setRealTimeDonationTotal] = useState(0)
+  const [campaignRefreshKey, setCampaignRefreshKey] = useState(0)
+  const [lastUpdatedTimestamp, setLastUpdatedTimestamp] = useState<string>('')
   const txStatusPollingRef = useRef<NodeJS.Timeout | null>(null)
+  const campaignPollingRef = useRef<NodeJS.Timeout | null>(null)
+  const isFetchingCampaignRef = useRef<boolean>(false)
+  const lastFetchAtRef = useRef<number>(0)
+  const isPageVisibleRef = useRef<boolean>(typeof document !== 'undefined' ? !document.hidden : true)
+  // Track previous donation metrics to auto-refresh transparency list when others donate
+  const prevDonationsCountRef = useRef<number>(0)
+  const prevConfirmedAmountRef = useRef<number>(0)
   const params = useParams()
   const campaignId = params.id
-  const donationManager = DonationStorageManager.getInstance()
 
-  // Fetch campaign data from API
+  // Fetch comprehensive campaign data from unified API
   useEffect(() => {
     const fetchCampaign = async () => {
       try {
-        const response = await fetch('/api/ngo/campaigns')
+        console.log('🔄 Loading comprehensive campaign data for ID:', campaignId)
+        
+        // Reset state
+        setRealTimeDonationTotal(0)
+        setDonationHistory([])
+        
+        // Fetch comprehensive campaign data (includes donations)
+        const response = await fetch(`/api/campaigns/${campaignId}`)
         const result = await response.json()
-        if (result.success) {
-          // Find the campaign by ID
-          const foundCampaign = result.campaigns.find((c: any) => c.id.toString() === campaignId)
-          if (foundCampaign) {
-            setCampaign(foundCampaign)
-          } else {
-            console.error('Campaign not found')
-          }
+        
+        if (result.success && result.campaign) {
+          const campaignData = result.campaign
+          console.log('✅ Loaded comprehensive campaign:', campaignData.title)
+          console.log('📦 Contains', campaignData.donations.length, 'donations')
+          console.log('💰 Confirmed amount:', campaignData.stats.confirmedAmount, 'SONIC')
+          
+          setCampaign(campaignData)
+          
+          // Set real-time total from comprehensive data
+          setRealTimeDonationTotal(campaignData.stats.confirmedAmount || 0)
+          
+          // Initialize timestamp for update monitoring
+          setLastUpdatedTimestamp(campaignData.lastUpdated || '')
+          
+          // Load donation history from comprehensive data
+          loadDonationHistoryFromCampaignData(campaignData)
+
+          // Initialize previous donation metrics for change detection
+          prevDonationsCountRef.current = (campaignData.donations || []).length
+          prevConfirmedAmountRef.current = campaignData.stats?.confirmedAmount || 0
+          
+        } else {
+          console.error('❌ Failed to load campaign:', result.error)
         }
       } catch (error) {
-        console.error('Error fetching campaign:', error)
+        console.error('❌ Error fetching campaign:', error)
       } finally {
         setLoading(false)
       }
@@ -94,47 +147,240 @@ export default function DonatePage() {
     }
   }, [campaignId])
 
-  // Cleanup polling on component unmount - MUST be before early returns
+
+
+
+
+  // Process donation history from comprehensive campaign data
+  const loadDonationHistoryFromCampaignData = (campaignData: any) => {
+    try {
+      console.log('📊 Processing donation history from campaign data...')
+      
+      const allDonations = campaignData.donations || []
+      console.log('📦 Campaign contains', allDonations.length, 'total donations')
+      
+      // Filter for current wallet if connected, otherwise show all
+      let filteredDonations = allDonations
+      if (walletConnected && userAddress) {
+        filteredDonations = allDonations.filter((d: any) => 
+          d.donorAddress && d.donorAddress.toLowerCase() === userAddress.toLowerCase()
+        )
+        console.log('🔍 Filtered', filteredDonations.length, 'donations for wallet', userAddress)
+      } else {
+        console.log('👁️ Showing all', allDonations.length, 'donations (wallet not connected)')
+      }
+      
+      // Convert to DonationHistory format for UI
+      const historyData: DonationHistory[] = filteredDonations.map((d: any) => ({
+        id: d.id,
+        txHash: d.txHash,
+        amount: d.amount,
+        currency: d.currency,
+        timestamp: new Date(d.timestamp),
+        status: d.status,
+        blockNumber: d.blockNumber,
+        gasUsed: d.gasUsed,
+        explorerUrl: d.explorerUrl,
+        walletAddress: d.donorAddress
+      }))
+      
+      // Sort by timestamp (newest first)
+      historyData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      setDonationHistory(historyData)
+      
+      console.log('✅ Processed donation history:', historyData.length, 'donations')
+    } catch (error) {
+      console.error('❌ Error processing donation history:', error)
+      setDonationHistory([])
+    }
+  }
+  
+  // Legacy function for compatibility
+  const loadPersonalDonationHistory = () => {
+    if (campaign) {
+      loadDonationHistoryFromCampaignData(campaign)
+    }
+  }
+
+  // Centralized, throttled campaign fetcher to avoid duplicate GETs
+  const fetchCampaignData = async (force = false) => {
+    try {
+      if (!campaignId) return
+      const now = Date.now()
+      // Reduced throttling for better real-time donation updates
+      if (!force) {
+        if (isFetchingCampaignRef.current) return
+        if (now - lastFetchAtRef.current < 1500) return // Reduced from 3s to 1.5s
+        if (!isPageVisibleRef.current) return
+      }
+
+      isFetchingCampaignRef.current = true
+      lastFetchAtRef.current = now
+      
+      const response = await fetch(`/api/campaigns/${campaignId}`)
+      const result = await response.json()
+      
+      if (result.success && result.campaign) {
+        const campaignData = result.campaign
+        
+        // Update campaign state with latest data
+        setCampaign(campaignData)
+        
+        // Update totals if changed to avoid flicker
+        const nextTotal = campaignData.stats?.confirmedAmount || 0
+        setRealTimeDonationTotal(prev => (Math.abs(nextTotal - prev) > 1e-9 ? nextTotal : prev))
+        
+        // Enhanced donation change detection for immediate transparency updates
+        const nextCount = (campaignData.donations || []).length
+        const prevCount = prevDonationsCountRef.current
+        const prevTotal = prevConfirmedAmountRef.current
+        const totalChanged = Math.abs(nextTotal - prevTotal) > 1e-10 // More sensitive
+        const countChanged = nextCount !== prevCount
+        
+        if (totalChanged || countChanged) {
+          console.log('🎯 Donation change detected:', {
+            countChange: `${prevCount} → ${nextCount}`,
+            totalChange: `${prevTotal.toFixed(6)} → ${nextTotal.toFixed(6)} SONIC`,
+            triggering: 'transparency refresh'
+          })
+          setCampaignDonationsRefresh(prev => prev + 1)
+          
+          // Also trigger immediate re-render of personal history
+          setTimeout(() => loadDonationHistoryFromCampaignData(campaignData), 100)
+        }
+        
+        // Update previous trackers
+        prevDonationsCountRef.current = nextCount
+        prevConfirmedAmountRef.current = nextTotal
+
+        // Update donation history
+        loadDonationHistoryFromCampaignData(campaignData)
+        
+        // Handle update indicator when timestamp changed
+        if (lastUpdatedTimestamp && campaignData.lastUpdated !== lastUpdatedTimestamp) {
+          setCampaignRefreshKey(prev => prev + 1)
+          const updateIndicator = document.createElement('div')
+          updateIndicator.className = 'fixed top-20 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse'
+          updateIndicator.innerHTML = '📢 Campaign Updated!'
+          document.body.appendChild(updateIndicator)
+          setTimeout(() => {
+            if (document.body.contains(updateIndicator)) document.body.removeChild(updateIndicator)
+          }, 3000)
+        }
+        setLastUpdatedTimestamp(campaignData.lastUpdated || '')
+      }
+    } catch (error) {
+      console.error('❌ Error fetching campaign data:', error)
+    } finally {
+      isFetchingCampaignRef.current = false
+    }
+  }
+
+  const updateRealTimeDonationTotal = async () => {
+    try {
+      console.log('🔄 Refreshing comprehensive campaign data for:', campaignId)
+      
+      if (!campaignId) {
+        console.log('⚠️ No campaign ID available')
+        return
+      }
+      // Force bypass throttle for explicit user-triggered refresh
+      await fetchCampaignData(true)
+    } catch (error) {
+      console.error('❌ Error refreshing campaign data:', error)
+    }
+  }
+
+  // ALL HOOKS MUST BE BEFORE EARLY RETURNS
+  // Cleanup polling on component unmount
   useEffect(() => {
     return () => {
       if (txStatusPollingRef.current) {
         clearInterval(txStatusPollingRef.current)
         txStatusPollingRef.current = null
       }
+      if (campaignPollingRef.current) {
+        clearInterval(campaignPollingRef.current)
+        campaignPollingRef.current = null
+      }
     }
+  }, [])
+
+  // Load personal donation history on component mount
+  useEffect(() => {
+    loadPersonalDonationHistory()
   }, [])
 
   // Auto-refresh personal donations when wallet connected
   useEffect(() => {
     if (walletConnected && userAddress) {
       const interval = setInterval(() => {
-        loadDonationHistory(userAddress)
+        loadPersonalDonationHistory()
       }, 10000) // Refresh every 10 seconds
       
       return () => clearInterval(interval)
     }
   }, [walletConnected, userAddress])
 
+  // Update real-time donation total when campaign loads or donations refresh
+  useEffect(() => {
+    if (campaignId && campaign) {
+      console.log('🚀 Campaign loaded, updating donation total for campaign:', campaignId)
+      // Load actual donations (avoid resetting to 0 which causes flicker)
+      updateRealTimeDonationTotal()
+    }
+  }, [campaignId, campaignDonationsRefresh, campaign])
+
+  // Aggressive polling for real-time donation updates
+  useEffect(() => {
+    if (campaignId) {
+      const interval = setInterval(() => {
+        fetchCampaignData(false)
+      }, 3000) // Poll every 3s for faster donation detection
+      
+      campaignPollingRef.current = interval
+      
+      return () => {
+        if (campaignPollingRef.current) {
+          clearInterval(campaignPollingRef.current)
+          campaignPollingRef.current = null
+        }
+      }
+    }
+  }, [campaignId])
+
+  // Aggressive refresh on visibility changes for real-time donation updates
+  useEffect(() => {
+    const onVisibility = () => {
+      const visible = !document.hidden
+      isPageVisibleRef.current = visible
+      if (visible) {
+        console.log('📱 Tab became visible - forcing donation data refresh')
+        fetchCampaignData(true)
+        // Also trigger donation transparency refresh
+        setCampaignDonationsRefresh(prev => prev + 1)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
+  // Early returns AFTER all hooks
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading campaign...</div>
   if (!campaign) return <div className="min-h-screen flex items-center justify-center">Campaign not found</div>
 
-  const progressPercentage = ((campaign.raisedAmount || campaign.currentAmount || 0) / (campaign.targetAmount || 1)) * 100
+  // Calculate real-time progress using only blockchain donations (avoid double-counting)
+  // realTimeDonationTotal is the accurate source from blockchain transactions
+  const totalRaised = realTimeDonationTotal
+  const progressPercentage = (totalRaised / (campaign.targetAmount || 1)) * 100
 
   const detectNetwork = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       try {
-        const provider = new ethers.BrowserProvider((window as any).ethereum)
-        const network = await provider.getNetwork()
-        const networkInfo = SUPPORTED_NETWORKS[Number(network.chainId)]
-        if (networkInfo) {
-          setCurrentNetwork(networkInfo)
-        } else {
-          // Default to Sonic Blaze if network not supported
-          setCurrentNetwork(SUPPORTED_NETWORKS[64165])
-        }
-      } catch (error) { 
-        console.error(error)
-        // Fallback to Sonic Blaze on error
+        const sonic = await ensureSonicNetwork()
+        setCurrentNetwork(sonic || SUPPORTED_NETWORKS[64165])
+      } catch (error) {
+        console.error('Error ensuring Sonic network:', error)
         setCurrentNetwork(SUPPORTED_NETWORKS[64165])
       }
     }
@@ -143,12 +389,14 @@ export default function DonatePage() {
   const connectWallet = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       try {
+        // Ensure Sonic before or after requesting accounts
+        await ensureSonicNetwork()
         const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" })
         setUserAddress(accounts[0])
         setWalletConnected(true)
         await detectNetwork()
         await fetchBalance(accounts[0])
-        loadDonationHistory(accounts[0])
+        loadPersonalDonationHistory()
       } catch (err) { console.error(err) }
     } else { alert("MetaMask not detected. Please install MetaMask to donate.") }
   }
@@ -161,30 +409,6 @@ export default function DonatePage() {
         setBalance(parseFloat(ethers.formatEther(balanceBigInt)).toFixed(4))
       }
     } catch (err) { console.error(err) }
-  }
-
-  const saveDonationHistory = (address: string, history: DonationHistory[]) => {
-    try {
-      localStorage.setItem(`donation_history_${address.toLowerCase()}`, JSON.stringify(history))
-    } catch (error) {
-      console.error('Error saving donation history:', error)
-    }
-  }
-
-  const loadDonationHistory = (address: string) => {
-    try {
-      const saved = localStorage.getItem(`donation_history_${address.toLowerCase()}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        const historyData: DonationHistory[] = parsed.map((item: any) => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        }))
-        setDonationHistory(historyData)
-      }
-    } catch (error) {
-      console.error('Error loading donation history:', error)
-    }
   }
 
   const handleDonate = async () => {
@@ -216,13 +440,11 @@ export default function DonatePage() {
       setTxHash(tx.hash)
       
       // Create donation record for campaign transparency
-      const donationRecord: DonationRecord = {
+      const donationRecord = {
         id: `${Date.now()}_${tx.hash}`,
-        campaignId: campaignId as string,
         txHash: tx.hash,
         amount: donationData.amount,
         currency: currentNetwork?.currency || "SONIC",
-        timestamp: new Date(),
         status: "pending",
         explorerUrl: `${currentNetwork?.explorer || 'https://blaze.soniclabs.com'}/tx/${tx.hash}`,
         donorAddress: userAddress,
@@ -231,26 +453,41 @@ export default function DonatePage() {
         networkName: currentNetwork?.name || 'Sonic Blaze Testnet'
       }
       
-      // Save to campaign donations for transparency
-      await donationManager.saveDonationRecord(donationRecord)
+      // Save to comprehensive campaign data via API
+      console.log('💾 Saving donation to comprehensive campaign', campaignId)
+      const saveResponse = await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'add_donation',
+          donation: donationRecord
+        })
+      })
       
-      // Trigger campaign donations refresh
-      setCampaignDonationsRefresh(prev => prev + 1)
-      
-      // Also keep personal history
-      const newDonation: DonationHistory = { 
-        id: Date.now().toString(), 
-        txHash: tx.hash, 
-        amount: donationData.amount, 
-        currency: currentNetwork?.currency || "SONIC", 
-        timestamp: new Date(), 
-        status: "pending", 
-        explorerUrl: `${currentNetwork?.explorer || 'https://blaze.soniclabs.com'}/tx/${tx.hash}` 
+      const saveResult = await saveResponse.json()
+      if (saveResult.success) {
+        console.log('✅ Donation saved to comprehensive campaign data')
+        // Update local state with new campaign data
+        setCampaign(saveResult.campaign)
+        setRealTimeDonationTotal(saveResult.campaign.stats.confirmedAmount || 0)
+      } else {
+        console.error('❌ Failed to save donation:', saveResult.error)
       }
       
-      const updatedHistory = [newDonation, ...donationHistory]
-      setDonationHistory(updatedHistory)
-      saveDonationHistory(userAddress, updatedHistory)
+      // Trigger campaign donations refresh immediately
+      setCampaignDonationsRefresh(prev => prev + 1)
+      
+      // Force update real-time total immediately
+      setTimeout(async () => {
+        await updateRealTimeDonationTotal()
+      }, 1000) // Small delay to ensure storage is updated
+      
+      // Refresh personal history to show new donation
+      setTimeout(() => {
+        loadPersonalDonationHistory()
+      }, 1000)
       
       setStep(3)
       
@@ -295,30 +532,43 @@ export default function DonatePage() {
             confirmationTime: new Date()
           }
           
-          // Update campaign donation record
-          await donationManager.updateDonationStatus(
-            campaignId,
-            txHash,
-            receipt.status === 1 ? 'confirmed' : 'failed',
-            confirmationData
-          )
+          // Update donation status in comprehensive campaign data
+          console.log('🔄 Updating donation status in comprehensive data')
+          const updateResponse = await fetch(`/api/campaigns/${campaignId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'update_donation_status',
+              txHash: txHash,
+              status: receipt.status === 1 ? 'confirmed' : 'failed',
+              blockNumber: receipt.blockNumber,
+              gasUsed: receipt.gasUsed.toString()
+            })
+          })
+          
+          const updateResult = await updateResponse.json()
+          if (updateResult.success) {
+            console.log('✅ Donation status updated in comprehensive data')
+            // Update local state with new campaign data
+            setCampaign(updateResult.campaign)
+            setRealTimeDonationTotal(updateResult.campaign.stats.confirmedAmount || 0)
+            loadDonationHistoryFromCampaignData(updateResult.campaign)
+          } else {
+            console.error('❌ Failed to update donation status:', updateResult.error)
+          }
           
           // Trigger campaign donations refresh
           setCampaignDonationsRefresh(prev => prev + 1)
           
-          // Update personal history
-          const updatedHistory = donationHistory.map(d => 
-            d.txHash === txHash
-              ? { 
-                  ...d, 
-                  status: receipt.status === 1 ? 'confirmed' as const : 'failed' as const,
-                  blockNumber: receipt.blockNumber,
-                  gasUsed: receipt.gasUsed.toString()
-                }
-              : d
-          )
-          setDonationHistory(updatedHistory)
-          saveDonationHistory(userAddress, updatedHistory)
+          // Update real-time donation total immediately
+          await updateRealTimeDonationTotal()
+          
+          // Refresh personal history to show updated status
+          setTimeout(() => {
+            loadPersonalDonationHistory()
+          }, 1000)
           
           // Clear polling
           if (txStatusPollingRef.current) {
@@ -380,7 +630,7 @@ export default function DonatePage() {
       {/* Hero Section */}
       <div className="relative h-96 w-full bg-gray-900">
         <SafeImage
-          src={campaign.imageUrl || campaign.image}
+          campaign={campaign}
           alt={campaign.title || campaign.name || "Campaign"}
           className="absolute w-full h-full object-cover opacity-70"
         />
@@ -418,14 +668,34 @@ export default function DonatePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Campaign Progress */}
+            {/* Campaign Progress - Real-Time */}
             <Card>
-              <CardContent className="pt-6">
+              <CardHeader className="flex flex-row justify-between items-center pb-3">
+                <CardTitle>Campaign Progress</CardTitle>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => {
+                    console.log('🔄 Manual refresh triggered - updating all donation components')
+                    updateRealTimeDonationTotal()
+                    setCampaignDonationsRefresh(prev => prev + 1)
+                    setCampaignRefreshKey(prev => prev + 1)
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
                 <div className="mb-4">
                   <div className="flex justify-between items-baseline mb-2">
-                    <span className="text-3xl font-bold text-green-600">
-                      {(campaign.raisedAmount || campaign.currentAmount || 0).toLocaleString()} SONIC
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-3xl font-bold text-green-600">
+                        {totalRaised.toFixed(4)} SONIC
+                      </span>
+                      <span className="text-xs text-blue-600 mt-1">
+                        Real-time blockchain donations
+                      </span>
+                    </div>
                     <span className="text-gray-600">
                       of {(campaign.targetAmount || 0).toLocaleString()} SONIC goal
                     </span>
@@ -433,8 +703,9 @@ export default function DonatePage() {
                   <Progress value={progressPercentage} className="h-3" />
                   <div className="flex justify-between mt-2 text-sm text-gray-500">
                     <span>{Math.round(progressPercentage)}% funded</span>
-                    <span>{((campaign.targetAmount || 0) - (campaign.raisedAmount || campaign.currentAmount || 0)).toLocaleString()} SONIC remaining</span>
+                    <span>{((campaign.targetAmount || 0) - totalRaised).toFixed(4)} SONIC remaining</span>
                   </div>
+
                 </div>
               </CardContent>
             </Card>
@@ -497,90 +768,96 @@ export default function DonatePage() {
               </CardContent>
             </Card>
 
-            {/* Documents */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="w-5 h-5 mr-2" />
-                  Reports & Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {/* Show placeholder for now - reports will be added later */}
-                <div className="text-center text-gray-500 py-8">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No reports uploaded yet</p>
-                  <p className="text-xs mt-1">
-                    The NGO will upload transparency reports and documentation here
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Reports & Documents */}
+            <CampaignReports 
+              campaignId={campaignId as string} 
+              refreshKey={campaignRefreshKey}
+            />
 
             {/* Campaign Donations Transparency - Always Visible */}
             <CampaignDonations 
               campaignId={campaignId as string} 
               refreshKey={campaignDonationsRefresh}
+              onTotalUpdate={(total) => {
+                setRealTimeDonationTotal(total)
+              }}
             />
 
-            {/* Personal Donation History */}
-            {walletConnected && (
-              <Card>
-                <CardHeader className="flex flex-row justify-between items-center">
-                  <CardTitle className="flex items-center">
-                    <History className="w-5 h-5 mr-2" />
-                    Your Personal History ({donationHistory.length})
-                  </CardTitle>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => {
-                      loadDonationHistory(userAddress)
-                      setCampaignDonationsRefresh(prev => prev + 1)
-                    }}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {donationHistory.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <Heart className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm font-medium">No personal donations yet</p>
-                      <p className="text-xs mt-1">Your personal donation history will appear here</p>
-                      <p className="text-xs text-gray-400 mt-2">All donations are also shown in campaign transparency above</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
-                        <div className="flex items-center">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Personal wallet history • Real-time status updates
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Last updated: {new Date().toLocaleTimeString()}
-                        </div>
+            {/* Personal Donation History - Always Show */}
+            <Card>
+              <CardHeader className="flex flex-row justify-between items-center">
+                <CardTitle className="flex items-center">
+                  <History className="w-5 h-5 mr-2" />
+                  Your Personal Transactions ({donationHistory.length})
+                </CardTitle>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => {
+                    console.log('🔄 Manual refresh of personal transactions - syncing with global data')
+                    updateRealTimeDonationTotal() // Force fresh campaign data
+                    setCampaignDonationsRefresh(prev => prev + 1) // Trigger transparency refresh
+                    loadPersonalDonationHistory() // Refresh personal view
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {donationHistory.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <Heart className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm font-medium">No personal donations yet</p>
+                    <p className="text-xs mt-1">Your transaction history will appear here</p>
+                  </div>
+                ) : (
+                  <>
+
+                  <div className="space-y-3">
+                    <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {walletConnected ? 'Personal wallet history' : 'All local transactions'} • Real-time status updates
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="border-b bg-gray-50">
-                            <tr>
-                              <th className="text-left p-3 font-semibold">Amount</th>
-                              <th className="text-left p-3 font-semibold">Status</th>
-                              <th className="text-left p-3 font-semibold">Date & Time</th>
-                              <th className="text-left p-3 font-semibold">Transaction</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {donationHistory.map(d => (
-                              <tr key={d.id} className="border-b hover:bg-gray-50 transition-colors">
-                                <td className="p-3">
-                                  <div className="flex items-center space-x-2">
-                                    <DollarSign className="w-4 h-4 text-green-600" />
-                                    <span className="font-bold">{d.amount} {d.currency}</span>
-                                  </div>
-                                </td>
-                                <td className="p-3">
+                      <div className="text-xs text-gray-400">
+                        Last updated: {new Date().toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-gray-50">
+                          <tr>
+                            <th className="text-left p-3 font-semibold">Amount</th>
+                            <th className="text-left p-3 font-semibold">Wallet</th>
+                            <th className="text-left p-3 font-semibold">Status</th>
+                            <th className="text-left p-3 font-semibold">Date & Time</th>
+                            <th className="text-left p-3 font-semibold">Transaction</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {donationHistory.map(d => (
+                            <tr key={d.id} className="border-b hover:bg-gray-50 transition-colors">
+                              <td className="p-3">
+                                <div className="flex items-center space-x-2">
+                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  <span className="font-bold">{d.amount} {d.currency}</span>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="font-mono text-xs text-gray-600">
+                                  {d.walletAddress ? (
+                                    <>
+                                      <div>{d.walletAddress.slice(0, 6)}...{d.walletAddress.slice(-4)}</div>
+                                      {walletConnected && userAddress.toLowerCase() === d.walletAddress && (
+                                        <Badge variant="secondary" className="text-xs mt-1">Current</Badge>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-400">Unknown</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3">
                                   <div className="space-y-1">
                                     <Badge 
                                       variant={d.status === 'confirmed' ? 'default' : d.status === 'pending' ? 'secondary' : 'destructive'}
@@ -628,10 +905,10 @@ export default function DonatePage() {
                         </table>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}

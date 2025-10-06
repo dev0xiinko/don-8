@@ -301,4 +301,96 @@ export class DonationStorageManager {
     }
     return []
   }
+
+  // Get all donations across all campaigns for global history
+  async getAllDonations(): Promise<DonationRecord[]> {
+    try {
+      // Try to fetch from API first for most up-to-date data
+      const response = await fetch('/api/donations/global')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.donations) {
+          return result.donations.map((d: any) => ({
+            ...d,
+            timestamp: new Date(d.timestamp),
+            confirmationTime: d.confirmationTime ? new Date(d.confirmationTime) : undefined
+          }))
+        }
+      }
+      
+      // Fallback to localStorage
+      const allDonations: DonationRecord[] = []
+      
+      // Get all campaign donation keys from localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('campaign_donations_') && !key.includes('_file_') && !key.includes('_timestamp')) {
+          const stored = localStorage.getItem(key)
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            const donations = parsed.map((d: any) => ({
+              ...d,
+              timestamp: new Date(d.timestamp),
+              confirmationTime: d.confirmationTime ? new Date(d.confirmationTime) : undefined
+            }))
+            allDonations.push(...donations)
+          }
+        }
+      }
+      
+      // Sort by timestamp (newest first)
+      allDonations.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      return allDonations
+    } catch (error) {
+      console.error('Error loading all donations:', error)
+      return []
+    }
+  }
+
+  // Get aggregated statistics across all campaigns
+  async getGlobalStats(): Promise<{
+    totalDonations: number
+    totalAmount: number
+    confirmedDonations: number
+    pendingDonations: number
+    uniqueDonors: number
+    uniqueCampaigns: number
+  }> {
+    try {
+      // Try to get stats from API first
+      const response = await fetch('/api/donations/global')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.stats) {
+          return result.stats
+        }
+      }
+      
+      // Fallback to calculating from getAllDonations
+      const allDonations = await this.getAllDonations()
+      const confirmed = allDonations.filter(d => d.status === 'confirmed')
+      const pending = allDonations.filter(d => d.status === 'pending')
+      const uniqueDonors = new Set(allDonations.map(d => d.anonymous ? 'anonymous' : d.donorAddress)).size
+      const uniqueCampaigns = new Set(allDonations.map(d => d.campaignId)).size
+
+      return {
+        totalDonations: allDonations.length,
+        totalAmount: confirmed.reduce((sum, d) => sum + parseFloat(d.amount), 0),
+        confirmedDonations: confirmed.length,
+        pendingDonations: pending.length,
+        uniqueDonors,
+        uniqueCampaigns
+      }
+    } catch (error) {
+      console.error('Error getting global stats:', error)
+      return {
+        totalDonations: 0,
+        totalAmount: 0,
+        confirmedDonations: 0,
+        pendingDonations: 0,
+        uniqueDonors: 0,
+        uniqueCampaigns: 0
+      }
+    }
+  }
 }

@@ -26,34 +26,16 @@ import {
 } from "lucide-react"
 import { AddUpdateModal, CampaignUpdatesList } from "@/components/campaign-updates"
 import { SafeImage } from "@/components/ui/safe-image"
+import { ReportUpload } from "@/components/report-upload"
 
 interface NGOCampaignCardProps {
   campaign: Campaign
-  onReportUpload?: (campaignId: string, file: File) => void
+  onReportUpload?: (campaignId: string, file: File, reportType?: string, description?: string) => Promise<void>
   onUpdateAdded?: (campaignId: string | number) => void
 }
 
 export function NGOCampaignCard({ campaign, onReportUpload, onUpdateAdded }: NGOCampaignCardProps) {
-  const [isUploading, setIsUploading] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0])
-    }
-  }
-
-  const handleUpload = () => {
-    if (selectedFile && onReportUpload) {
-      setIsUploading(true)
-      onReportUpload(campaign.id.toString(), selectedFile)
-      setTimeout(() => {
-        setIsUploading(false)
-        setSelectedFile(null)
-      }, 1000)
-    }
-  }
 
   const handleUpdateAdded = (update: any) => {
     if (onUpdateAdded) {
@@ -86,11 +68,7 @@ export function NGOCampaignCard({ campaign, onReportUpload, onUpdateAdded }: NGO
         {((campaign.images && campaign.images.length > 0) || campaign.imageUrl || campaign.image) && (
           <div className="relative h-48 w-full overflow-hidden">
             <SafeImage
-              src={
-                (campaign.images && campaign.images.length > 0) 
-                  ? campaign.images[0] 
-                  : campaign.imageUrl || campaign.image
-              } 
+              campaign={campaign}
               alt={campaign.title || campaign.name || "Campaign"} 
               className="h-full w-full object-cover"
             />
@@ -212,28 +190,12 @@ export function NGOCampaignCard({ campaign, onReportUpload, onUpdateAdded }: NGO
 
             {/* Report Upload Section */}
             {onReportUpload && (
-              <div className="border-t pt-3 space-y-2">
-                <Label htmlFor={`report-${campaign.id}`} className="text-sm font-medium">
-                  Upload Progress Report
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id={`report-${campaign.id}`}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    disabled={isUploading}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={handleUpload} 
-                    disabled={!selectedFile || isUploading}
-                    size="sm"
-                  >
-                    <Upload className="w-4 h-4 mr-1" />
-                    {isUploading ? "Uploading..." : "Upload"}
-                  </Button>
-                </div>
+              <div className="border-t pt-3">
+                <ReportUpload 
+                  campaignId={campaign.id}
+                  onReportUpload={onReportUpload}
+                  existingReports={campaign.reports || []}
+                />
               </div>
             )}
           </div>
