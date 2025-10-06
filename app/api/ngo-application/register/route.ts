@@ -54,6 +54,8 @@ export async function POST(req: Request) {
       submittedAt: new Date().toISOString(),
       reviewedAt: null,
       reviewedBy: null,
+      // Store the actual password provided during registration
+      registrationPassword: body.password,
       credentials: null
     };
 

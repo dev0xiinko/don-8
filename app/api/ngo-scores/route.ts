@@ -50,7 +50,8 @@ const SCORING_CRITERIA = {
     frequentReports: 10,       // Bonus for monthly+ reports
     quickUpdates: 5,           // Updates within 24h of withdrawal
     highEngagement: 8,         // Regular updates and donor communication
-    completedCampaigns: 15     // Successfully completed campaigns with final reports
+    completedCampaigns: 15,    // Successfully completed campaigns with final reports
+    activeWithdrawal: 3        // Bonus for each withdrawal (shows active fund usage)
   }
 }
 
@@ -221,6 +222,26 @@ async function calculateDynamicScore(ngoId: number, ngoName?: string): Promise<N
     }
   }
   
+  // 6. Load withdrawals from withdrawals.json file
+  const withdrawalsFromFile = await loadWithdrawals(ngoId)
+  const totalWithdrawalsFromFile = withdrawalsFromFile.length
+  
+  // Use the higher count (from campaigns or from withdrawals file)
+  const actualTotalWithdrawals = Math.max(totalWithdrawals, totalWithdrawalsFromFile)
+  
+  // 7. Active Withdrawal Bonus
+  if (actualTotalWithdrawals > 0) {
+    const withdrawalBonus = actualTotalWithdrawals * SCORING_CRITERIA.bonuses.activeWithdrawal
+    score += withdrawalBonus
+    scoreHistory.push({
+      date: new Date().toISOString(),
+      type: 'update',
+      campaignId: 'all',
+      scoreChange: withdrawalBonus,
+      description: `Bonus: ${actualTotalWithdrawals} active withdrawals (+${SCORING_CRITERIA.bonuses.activeWithdrawal} each)`
+    })
+  }
+  
   // Cap the score at maximum
   score = Math.min(score, SCORING_CRITERIA.maxScore)
   score = Math.max(0, score) // Don't go below 0
@@ -230,7 +251,7 @@ async function calculateDynamicScore(ngoId: number, ngoName?: string): Promise<N
     ngoName: ngoName || `NGO ${ngoId}`,
     currentScore: Math.round(score),
     maxScore: SCORING_CRITERIA.maxScore,
-    totalWithdrawals,
+    totalWithdrawals: actualTotalWithdrawals,
     updatesOnTime,
     updatesLate,
     lastUpdated: new Date().toISOString(),
@@ -250,17 +271,23 @@ export async function GET(request: NextRequest) {
     console.log('📊 Getting dynamic NGO scores', ngoId ? `for NGO ${ngoId}` : 'for all NGOs')
     
     if (ngoId) {
-      // Calculate real-time score for specific NGO
+      const source = new URL(request.url).searchParams.get('source') || 'dynamic'
+      if (source === 'stored') {
+        // Explicitly requested stored score
+        const storedScores = await loadNGOScores()
+        const storedScore = storedScores.find(score => score.ngoId === parseInt(ngoId))
+        if (storedScore) {
+          console.log(`📦 Returning stored score for NGO ${ngoId}: ${storedScore.currentScore}`)
+          return NextResponse.json({ success: true, score: storedScore })
+        }
+      }
+      // Default: dynamic calculation (authoritative)
       const campaigns = await loadAllCampaigns()
       const ngoCampaign = campaigns.find((c: any) => c.ngoId === parseInt(ngoId))
       const ngoName = ngoCampaign?.ngoName || `NGO ${ngoId}`
-      
       const dynamicScore = await calculateDynamicScore(parseInt(ngoId), ngoName)
-      
-      return NextResponse.json({
-        success: true,
-        score: dynamicScore
-      })
+      console.log(`🧮 Returning dynamic score for NGO ${ngoId}: ${dynamicScore.currentScore}`)
+      return NextResponse.json({ success: true, score: dynamicScore })
     }
     
     // Calculate dynamic scores for all NGOs
@@ -329,11 +356,12 @@ export async function POST(request: NextRequest) {
     let description = ''
     
     if (type === 'withdrawal') {
-      // Record withdrawal - no immediate score change
-      scoreChange = 0
-      description = `Withdrawal of ${withdrawalAmount} SONIC from campaign ${campaignId}`
+      // Award points for active fund usage
+      scoreChange = SCORING_CRITERIA.bonuses.activeWithdrawal
+      description = `Withdrawal of ${withdrawalAmount} SONIC from campaign ${campaignId} (+${scoreChange} reputation points for active fund usage)`
       
       ngoScore.totalWithdrawals++
+      // Do not mutate currentScore here; final application happens once below
       
       // Schedule penalty check (in real app, this would be a background job)
       // For now, we'll check on next update or manual review
@@ -398,8 +426,8 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Apply score change
-    ngoScore.currentScore = Math.max(0, ngoScore.currentScore + scoreChange)
+    // Apply score change (ensure it stays within bounds)
+    ngoScore.currentScore = Math.max(0, Math.min(ngoScore.currentScore + scoreChange, SCORING_CRITERIA.maxScore))
     ngoScore.lastUpdated = new Date().toISOString()
     
     // Add to score history
@@ -441,6 +469,21 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper functions
+async function loadWithdrawals(ngoId: number): Promise<any[]> {
+  try {
+    const withdrawalsFile = path.join(process.cwd(), 'mock', 'withdrawals.json')
+    if (fs.existsSync(withdrawalsFile)) {
+      const content = fs.readFileSync(withdrawalsFile, 'utf8')
+      const allWithdrawals = JSON.parse(content)
+      return allWithdrawals.filter((w: any) => w.ngoId === ngoId)
+    }
+    return []
+  } catch (error) {
+    console.error('Error loading withdrawals:', error)
+    return []
+  }
+}
+
 async function loadNGOScores(): Promise<NGOScore[]> {
   try {
     if (fs.existsSync(SCORES_FILE)) {

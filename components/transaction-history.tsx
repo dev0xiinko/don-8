@@ -49,14 +49,14 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>{new Date(transaction.date).toLocaleDateString()}</span>
                     <span>•</span>
-                    <span className="font-mono text-xs">{transaction.txHash.slice(0, 10)}...</span>
+                    <span className="font-mono text-xs">{(transaction.txHash || '').slice(0, 10)}...</span>
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <p className={`text-lg font-bold ${getTransactionColor(transaction.type)}`}>
                   {transaction.type === "donation" ? "+" : "-"}
-                  {transaction.amount.toFixed(2)} ETH
+                  {transaction.amount.toFixed(2)} SONIC
                 </p>
                 <Badge variant="outline" className="capitalize">
                   {transaction.type}

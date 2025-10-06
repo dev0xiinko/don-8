@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft, Shield, Eye, EyeOff, Check, X } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [walletError, setWalletError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     userType: "ngo",
@@ -54,7 +55,36 @@ export default function RegisterPage() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    // Clear password errors when user types
+    if (field === 'password' || field === 'confirmPassword') {
+      setPasswordError("");
+    }
   };
+
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+    const checks = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+
+    if (checks.length) score++;
+    if (checks.uppercase) score++;
+    if (checks.lowercase) score++;
+    if (checks.number) score++;
+    if (checks.special) score++;
+
+    if (score <= 2) return { strength: 'weak', color: 'text-red-500', bgColor: 'bg-red-100', score, checks };
+    if (score <= 4) return { strength: 'medium', color: 'text-yellow-600', bgColor: 'bg-yellow-100', score, checks };
+    return { strength: 'strong', color: 'text-green-600', bgColor: 'bg-green-100', score, checks };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+  const passwordsMatch = formData.password === formData.confirmPassword;
 
   const handleConnectWallet = async () => {
     setWalletError("");
@@ -80,7 +110,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setPasswordError("");
 
-    // password validation
+    // Password validation
+    if (formData.password.length < 8) {
+      setPasswordError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (passwordStrength.strength === 'weak') {
+      setPasswordError("Password is too weak. Please include uppercase, lowercase, numbers, and special characters.");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setPasswordError("Passwords do not match.");
       return;
@@ -233,7 +273,7 @@ export default function RegisterPage() {
               {/* Password */}
               <div className="space-y-3">
                 <Label htmlFor="password">Password</Label>
-                <div className="flex items-center gap-2">
+                <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -242,32 +282,120 @@ export default function RegisterPage() {
                       handleInputChange("password", e.target.value)
                     }
                     placeholder="Enter a secure password"
+                    className="pr-10"
                     required
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                
+                {/* Password Strength Indicator */}
+                {formData.password && (
+                  <div className={`p-3 rounded-lg ${passwordStrength.bgColor}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-sm font-medium ${passwordStrength.color}`}>
+                        Password strength: {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        {passwordStrength.checks.length ? 
+                          <Check className="h-3 w-3 text-green-500" /> : 
+                          <X className="h-3 w-3 text-red-500" />
+                        }
+                        <span className={passwordStrength.checks.length ? "text-green-700" : "text-red-600"}>
+                          At least 8 characters
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordStrength.checks.uppercase ? 
+                          <Check className="h-3 w-3 text-green-500" /> : 
+                          <X className="h-3 w-3 text-red-500" />
+                        }
+                        <span className={passwordStrength.checks.uppercase ? "text-green-700" : "text-red-600"}>
+                          Uppercase letter (A-Z)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordStrength.checks.lowercase ? 
+                          <Check className="h-3 w-3 text-green-500" /> : 
+                          <X className="h-3 w-3 text-red-500" />
+                        }
+                        <span className={passwordStrength.checks.lowercase ? "text-green-700" : "text-red-600"}>
+                          Lowercase letter (a-z)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordStrength.checks.number ? 
+                          <Check className="h-3 w-3 text-green-500" /> : 
+                          <X className="h-3 w-3 text-red-500" />
+                        }
+                        <span className={passwordStrength.checks.number ? "text-green-700" : "text-red-600"}>
+                          Number (0-9)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {passwordStrength.checks.special ? 
+                          <Check className="h-3 w-3 text-green-500" /> : 
+                          <X className="h-3 w-3 text-red-500" />
+                        }
+                        <span className={passwordStrength.checks.special ? "text-green-700" : "text-red-600"}>
+                          Special character (!@#$%^&*)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Confirm Password */}
               <div className="space-y-3">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    handleInputChange("confirmPassword", e.target.value)
-                  }
-                  placeholder="Re-enter your password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      handleInputChange("confirmPassword", e.target.value)
+                    }
+                    placeholder="Re-enter your password"
+                    className="pr-10"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                
+                {/* Password Match Indicator */}
+                {formData.confirmPassword && (
+                  <div className={`flex items-center gap-2 p-2 rounded text-sm ${
+                    passwordsMatch ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"
+                  }`}>
+                    {passwordsMatch ? 
+                      <Check className="h-4 w-4 text-green-500" /> : 
+                      <X className="h-4 w-4 text-red-500" />
+                    }
+                    <span>
+                      {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                    </span>
+                  </div>
+                )}
+                
                 {passwordError && (
                   <p className="text-red-500 text-sm">{passwordError}</p>
                 )}
@@ -411,7 +539,13 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                disabled={!formData.agreeTerms || submitting}
+                disabled={
+                  !formData.agreeTerms || 
+                  submitting || 
+                  passwordStrength.strength === 'weak' || 
+                  !passwordsMatch ||
+                  formData.password.length < 8
+                }
               >
                 <Shield className="w-5 h-5 mr-2" />
                 {submitting ? "Submitting..." : "Submit Application"}

@@ -18,6 +18,9 @@ export default function NGOLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  // Live homepage-like stats
+  const [totalDonated, setTotalDonated] = useState<number>(0)
+  const [activeCampaigns, setActiveCampaigns] = useState<number>(0)
 
   const handleLogin = async () => {
     setError("")
@@ -59,6 +62,37 @@ export default function NGOLoginPage() {
       setIsLoading(false)
     }
   }
+
+  // Fetch live stats similar to homepage (auto-refresh)
+  useEffect(() => {
+    let isMounted = true
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/campaigns')
+        const result = await response.json()
+        if (!isMounted) return
+        if (result.success) {
+          const campaigns = result.campaigns || []
+          let totalRaised = 0
+          let active = 0
+          campaigns.forEach((campaign: any) => {
+            if (campaign.status === 'active') active++
+            if (campaign.raisedAmount) {
+              totalRaised += parseFloat(campaign.raisedAmount.toString() || '0')
+            }
+          })
+          setTotalDonated(totalRaised)
+          setActiveCampaigns(active)
+        }
+      } catch (e) {
+        // Keep defaults on failure
+        // console.warn('Failed to fetch live stats for login page', e)
+      }
+    }
+    fetchStats()
+    const id = setInterval(fetchStats, 60000) // refresh every 60s
+    return () => { isMounted = false; clearInterval(id) }
+  }, [])
 
 
 
@@ -133,11 +167,11 @@ export default function NGOLoginPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-sm opacity-90">Total Donations</div>
-                <div className="text-3xl font-bold">2.4M+ SONIC</div>
+                <div className="text-3xl font-bold">{totalDonated.toFixed(2)} SONIC</div>
               </div>
               <div className="text-right">
                 <div className="text-sm opacity-90">Active Campaigns</div>
-                <div className="text-3xl font-bold">42</div>
+                <div className="text-3xl font-bold">{activeCampaigns}</div>
               </div>
             </div>
             <div className="text-xs opacity-75">Trusted by 150+ NGOs worldwide</div>

@@ -29,6 +29,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     
     // Update application status
+    const normalizedEmail = (applications[applicationIndex].email || '').toString().trim().toLowerCase();
+    const finalPassword = applications[applicationIndex].registrationPassword || `${applications[applicationIndex].organizationName.toLowerCase().replace(/\s+/g, '')}123`;
+
     applications[applicationIndex] = {
       ...applications[applicationIndex],
       status: 'approved',
@@ -36,11 +39,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       reviewedBy: 'admin@don8.com',
       reviewNotes: reviewNotes || 'Application approved for platform access.',
       credentials: {
-        email: applications[applicationIndex].email,
-        password: `${applications[applicationIndex].organizationName.toLowerCase().replace(/\s+/g, '')}123`
+        email: normalizedEmail,
+        // Use the password provided during registration, fallback to generated one if not available
+        password: finalPassword
       }
     };
     
+    // Safety: backfill credentials for any approved entries missing credentials (data hygiene)
+    for (const app of applications) {
+      if (app.status === 'approved' && !app.credentials) {
+        const emailNorm = (app.email || '').toString().trim().toLowerCase();
+        const pwd = app.registrationPassword || `${(app.organizationName || '').toLowerCase().replace(/\s+/g, '')}123`;
+        app.credentials = { email: emailNorm, password: pwd };
+      }
+    }
+
     // Write back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
     

@@ -159,7 +159,7 @@ export default function NGOScoring({ ngoId, ngoName }: NGOScoringProps) {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center">
             <Award className="w-5 h-5 mr-2 text-yellow-600" />
-            NGO Transparency Score
+            NGO Reputation Score
           </CardTitle>
           <div className="flex gap-2">
             <Button
@@ -242,7 +242,7 @@ export default function NGOScoring({ ngoId, ngoName }: NGOScoringProps) {
               <Alert className="border-green-200 bg-green-50">
                 <Star className="w-4 h-4" />
                 <AlertDescription className="text-green-800">
-                  <strong>Excellent Transparency!</strong> You maintain timely updates after withdrawals.
+                  <strong>Excellent Reputation!</strong> You consistently engage with donors and provide timely updates.
                 </AlertDescription>
               </Alert>
             )}
@@ -251,7 +251,7 @@ export default function NGOScoring({ ngoId, ngoName }: NGOScoringProps) {
               <Alert className="border-yellow-200 bg-yellow-50">
                 <Clock className="w-4 h-4" />
                 <AlertDescription className="text-yellow-800">
-                  <strong>Good Transparency.</strong> Consider posting updates more promptly after withdrawals.
+                  <strong>Good Reputation.</strong> Continue posting regular updates and reports to improve your score.
                 </AlertDescription>
               </Alert>
             )}
@@ -260,7 +260,7 @@ export default function NGOScoring({ ngoId, ngoName }: NGOScoringProps) {
               <Alert className="border-red-200 bg-red-50">
                 <AlertTriangle className="w-4 h-4" />
                 <AlertDescription className="text-red-800">
-                  <strong>Transparency Needs Improvement.</strong> Please post updates within 7 days of withdrawals to maintain donor trust.
+                  <strong>Reputation Needs Improvement.</strong> Post more updates and reports to build donor confidence and trust.
                 </AlertDescription>
               </Alert>
             )}
@@ -271,27 +271,43 @@ export default function NGOScoring({ ngoId, ngoName }: NGOScoringProps) {
       {/* Scoring Rules */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Scoring Rules</CardTitle>
+          <CardTitle className="text-base">Reputation Scoring System</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
             <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <div className="font-medium">Maintain 100 Points</div>
-              <div className="text-gray-600">Post campaign updates within 7 days after any withdrawal</div>
+              <div className="font-medium">+5 Points: Campaign Updates</div>
+              <div className="text-gray-600">Earn points for posting campaign progress updates and reports</div>
             </div>
           </div>
           
-          <div className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg">
-            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+            <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
-              <div className="font-medium">Lose 10 Points</div>
-              <div className="text-gray-600">For each withdrawal without an update within 7 days</div>
+              <div className="font-medium">+3 Points: Fund Withdrawals</div>
+              <div className="text-gray-600">Show activity by withdrawing donated funds for campaign use</div>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3 p-3 bg-orange-50 rounded-lg">
+            <Clock className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <div className="font-medium">-10 Points: Penalty</div>
+              <div className="text-gray-600">Deducted for withdrawals without updates within 7 days</div>
+            </div>
+          </div>
+          
+          <div className="flex items-start space-x-3 p-3 bg-purple-50 rounded-lg">
+            <Star className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <div className="font-medium">Bonus Points</div>
+              <div className="text-gray-600">Additional rewards for consistent transparency and donor engagement</div>
             </div>
           </div>
           
           <div className="text-xs text-gray-500 mt-2">
-            High scores build donor trust and improve your NGO's reputation on the platform.
+            Higher reputation scores increase donor confidence and improve your NGO's platform visibility.
           </div>
         </CardContent>
       </Card>
