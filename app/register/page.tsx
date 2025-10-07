@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Shield, Eye, EyeOff, Check, X } from "lucide-react";
+import { ArrowLeft, Shield, Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -33,7 +33,47 @@ export default function RegisterPage() {
   const [verifyCode, setVerifyCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string>("");
-  const [devVerificationCode, setDevVerificationCode] = useState<string | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(60);
+  const [resendLoading, setResendLoading] = useState(false);
+
+  // OTP helpers
+  const otpLength = 6;
+  const setOtpAtIndex = (index: number, digit: string) => {
+    const clean = digit.replace(/\D/g, '').slice(0, 1);
+    const codeArr = verifyCode.padEnd(otpLength, ' ').split('');
+    codeArr[index] = clean || ' ';
+    const newCode = codeArr.join('').replace(/\s/g, '');
+    setVerifyCode(newCode);
+  };
+  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const value = e.target.value;
+    setOtpAtIndex(index, value);
+    if (value && e.target.nextElementSibling instanceof HTMLInputElement) {
+      e.target.nextElementSibling.focus();
+    }
+  };
+  const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    const target = e.currentTarget;
+    if (e.key === 'Backspace' && !target.value && target.previousElementSibling instanceof HTMLInputElement) {
+      target.previousElementSibling.focus();
+    }
+    if (e.key === 'ArrowLeft' && target.previousElementSibling instanceof HTMLInputElement) {
+      target.previousElementSibling.focus();
+      e.preventDefault();
+    }
+    if (e.key === 'ArrowRight' && target.nextElementSibling instanceof HTMLInputElement) {
+      target.nextElementSibling.focus();
+      e.preventDefault();
+    }
+  };
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpLength);
+    if (pasted) {
+      setVerifyCode(pasted);
+    }
+  };
   const [submitting, setSubmitting] = useState(false);
   const [walletError, setWalletError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -178,10 +218,6 @@ export default function RegisterPage() {
       console.log("Application submitted successfully:", result);
       
       setApplicationId(result.applicationId);
-      // Capture dev-only code for local testing (no real email provider)
-      if (result.devOnlyVerificationCode) {
-        setDevVerificationCode(result.devOnlyVerificationCode);
-      }
       // Store in sessionStorage for confirmation page and verification step
       sessionStorage.setItem("ngoProfile", JSON.stringify({
         ...formData,
@@ -197,43 +233,68 @@ export default function RegisterPage() {
   };
 
   const handleResendCode = async () => {
-    if (!applicationId) return;
-    setVerifying(true);
+    // Support refresh cases: get applicationId from session if not in state
+    let appId = applicationId;
+    if (!appId) {
+      try {
+        const stored = sessionStorage.getItem('ngoProfile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.applicationId) appId = parsed.applicationId;
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+    if (!appId) {
+      setVerifyMessage('Missing application ID. Please resubmit your application.');
+      return;
+    }
+    setResendLoading(true);
     setVerifyMessage("");
     try {
       const res = await fetch('/api/ngo-application/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId, action: 'send' })
+        body: JSON.stringify({ applicationId: appId, action: 'send' })
       });
       const data = await res.json();
       if (data.success) {
         setVerifyMessage('Verification code sent to your email.');
-        if (data.devOnlyVerificationCode) {
-          setDevVerificationCode(data.devOnlyVerificationCode);
-        }
+        setResendSeconds(60);
       } else {
         setVerifyMessage(data.message || 'Failed to send verification code.');
       }
     } catch (e: any) {
       setVerifyMessage('Failed to send verification code.');
     } finally {
-      setVerifying(false);
+      setResendLoading(false);
     }
   };
 
   const handleVerifyCode = async () => {
-    if (!applicationId || !verifyCode) return;
+    let appId = applicationId;
+    if (!appId) {
+      try {
+        const stored = sessionStorage.getItem('ngoProfile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.applicationId) appId = parsed.applicationId;
+        }
+      } catch {}
+    }
+    if (!appId || !verifyCode) return;
     setVerifying(true);
     setVerifyMessage("");
     try {
       const res = await fetch('/api/ngo-application/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId, action: 'verify', code: verifyCode })
+        body: JSON.stringify({ applicationId: appId, action: 'verify', code: verifyCode })
       });
       const data = await res.json();
       if (data.success) {
+        setIsVerified(true);
         setVerifyMessage('Email verified! You can now sign in after admin approval.');
       } else {
         setVerifyMessage(data.message || 'Invalid or expired code.');
@@ -245,6 +306,14 @@ export default function RegisterPage() {
     }
   };
 
+  // Start/continue resend countdown while awaiting verification
+  useEffect(() => {
+    if (!submitted || isVerified) return;
+    if (resendSeconds <= 0) return;
+    const t = setTimeout(() => setResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearTimeout(t);
+  }, [submitted, isVerified, resendSeconds]);
+
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -253,38 +322,84 @@ export default function RegisterPage() {
             <CardTitle className="text-2xl font-bold text-emerald-700">
               Application Submitted
             </CardTitle>
-            <CardDescription className="text-gray-600">
-              We sent a 6-digit verification code to your email. Enter it below to verify your account.
-            </CardDescription>
+            {!isVerified ? (
+              <CardDescription className="text-gray-600">
+                We sent a 6-digit verification code to your email. Enter it below to verify your account.
+              </CardDescription>
+            ) : (
+              <CardDescription className="text-gray-600">
+                Thank you! Your email is verified. We will notify you once your application is reviewed.
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {devVerificationCode && (
-                <div className="p-3 rounded-md bg-yellow-50 text-yellow-800 text-sm text-left">
-                  <div className="font-medium">Development only</div>
-                  <div>Your verification code: <span className="font-mono">{devVerificationCode}</span></div>
-                  <div className="text-xs mt-1">This is shown because no email provider is configured. Hide this in production.</div>
+            {!isVerified ? (
+              <div className="space-y-5">
+                <div className="text-sm text-gray-600">
+                  We sent the code to <span className="font-medium text-gray-900">{formData.email || 'your email'}</span>
                 </div>
-              )}
-              <div className="text-left">
-                <Label htmlFor="verifyCode">Verification Code</Label>
-                <Input id="verifyCode" value={verifyCode} onChange={(e) => setVerifyCode(e.target.value)} placeholder="Enter 6-digit code" />
+                <div className="flex flex-col items-center gap-3" onPaste={handleOtpPaste}>
+                  <Label htmlFor="verifyCode" className="sr-only">Verification Code</Label>
+                  <div className="w-full flex justify-center gap-2" role="group" aria-label="Verification code inputs">
+                    {Array.from({ length: otpLength }).map((_, i) => (
+                      <input
+                        key={i}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        className="w-10 h-12 text-center border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        value={verifyCode[i] || ''}
+                        onChange={(e) => handleOtpChange(e, i)}
+                        onKeyDown={(e) => handleOtpKeyDown(e, i)}
+                        aria-label={`Digit ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500">You can paste the full 6-digit code</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 items-stretch">
+                  <Button
+                    onClick={handleVerifyCode}
+                    disabled={verifying || verifyCode.length < 6}
+                    className="bg-emerald-600 text-white hover:bg-emerald-700 w-full h-10"
+                  >
+                    {verifying ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Verifying...</>
+                    ) : (
+                      'Verify Email'
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleResendCode}
+                    disabled={verifying || resendLoading || resendSeconds > 0}
+                    className="w-full h-10"
+                  >
+                    {resendLoading ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>
+                    ) : resendSeconds > 0 ? (
+                      `Resend (${resendSeconds}s)`
+                    ) : (
+                      'Resend Code'
+                    )}
+                  </Button>
+                </div>
+                {verifyMessage && <div className="text-sm text-gray-700">{verifyMessage}</div>}
+                <div className="pt-2">
+                  <Link href="/">
+                    <Button variant="ghost" className="w-full">Back to Home</Button>
+                  </Link>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleVerifyCode} disabled={verifying || verifyCode.length < 6} className="bg-emerald-600 text-white hover:bg-emerald-700 w-full">
-                  {verifying ? 'Verifying...' : 'Verify Email'}
-                </Button>
-                <Button variant="outline" onClick={handleResendCode} disabled={verifying} className="w-full">
-                  Resend Code
-                </Button>
-              </div>
-              {verifyMessage && <div className="text-sm text-gray-700">{verifyMessage}</div>}
-              <div className="pt-4">
+            ) : (
+              <div className="space-y-4">
+                {verifyMessage && <div className="text-sm text-gray-700">{verifyMessage}</div>}
                 <Link href="/">
-                  <Button variant="ghost" className="w-full">Back to Home</Button>
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">Back to Home</Button>
                 </Link>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -341,6 +456,7 @@ export default function RegisterPage() {
                   <Input
                     id="email"
                     type="email"
+                    autoComplete="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="email@example.com"
@@ -356,6 +472,7 @@ export default function RegisterPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={formData.password}
                     onChange={(e) =>
                       handleInputChange("password", e.target.value)
@@ -441,6 +558,7 @@ export default function RegisterPage() {
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={formData.confirmPassword}
                     onChange={(e) =>
                       handleInputChange("confirmPassword", e.target.value)
@@ -486,6 +604,7 @@ export default function RegisterPage() {
                 <div className="flex gap-2">
                   <Input
                     id="walletAddress"
+                    autoComplete="off"
                     value={formData.walletAddress}
                     onChange={(e) =>
                       handleInputChange("walletAddress", e.target.value)
@@ -527,9 +646,8 @@ export default function RegisterPage() {
                   placeholder="https://yourwebsite.org (optional)"
                 />
                 <Select
-                  onValueChange={(value) =>
-                    handleInputChange("category", value)
-                  }
+                  value={formData.category}
+                  onValueChange={(value) => handleInputChange("category", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
@@ -559,6 +677,8 @@ export default function RegisterPage() {
                 <Input
                   id="foundedYear"
                   type="number"
+                  min="1900"
+                  max="2100"
                   value={formData.foundedYear}
                   onChange={(e) =>
                     handleInputChange("foundedYear", e.target.value)
@@ -626,8 +746,15 @@ export default function RegisterPage() {
                   formData.password.length < 8
                 }
               >
-                <Shield className="w-5 h-5 mr-2" />
-                {submitting ? "Submitting..." : "Submit Application"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Shield className="w-5 h-5 mr-2" /> Submit Application
+                  </>
+                )}
               </Button>
 
               {/* Sign In Link */}

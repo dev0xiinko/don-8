@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
         console.error('Failed to send verification email:', e)
         return NextResponse.json({ success: false, message: 'Failed to send verification email. Check SMTP settings.' }, { status: 500 })
       }
-      fs.writeFileSync(filePath, JSON.stringify(apps, null, 2))
-      return NextResponse.json({ success: true, message: 'Verification code sent', devOnlyVerificationCode: app.verificationCode })
+  fs.writeFileSync(filePath, JSON.stringify(apps, null, 2))
+  return NextResponse.json({ success: true, message: 'Verification code sent' })
     }
 
     if (action === 'verify') {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { sendApplicationStatusEmail } from '@/lib/mailer';
 
 interface RouteParams {
   params: { id: string };
@@ -40,6 +41,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     // Write back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
+
+    // Best-effort: notify applicant via email
+    try {
+      const app = applications[applicationIndex]
+      if (app?.email) {
+        await sendApplicationStatusEmail(app.email, 'rejected', app.organizationName || app.name, reviewNotes)
+      }
+    } catch (e) {
+      console.warn('Failed to send rejection email:', e)
+    }
 
     return NextResponse.json({
       message: 'Application rejected successfully',

@@ -18,6 +18,7 @@ import {
   Wallet,
   Download,
   Award,
+  LogOut,
 } from "lucide-react";
 import { getBalanceFromAddress } from "@/lib/metamask";
 
@@ -475,6 +476,21 @@ export default function NGODashboardPage() {
     }
   };
 
+  const handleLogout = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('ngo_logged_in');
+        sessionStorage.removeItem('ngo_info');
+      }
+    } catch (e) {
+      console.error('Error clearing NGO session:', e);
+    }
+    // Best-effort disconnect of wallet/listeners
+    try { handleDisconnectWallet(); } catch {}
+    // Redirect to homepage
+    window.location.href = '/';
+  };
+
   useEffect(() => {
     const checkExistingConnection = async () => {
       if (typeof window.ethereum !== "undefined") {
@@ -543,7 +559,7 @@ export default function NGODashboardPage() {
             </p>
           </div>
 
-          {/* Wallet Connection */}
+          {/* Wallet Connection + Logout */}
           <div className="flex items-center space-x-4">
             {!isWalletConnected ? (
               <Button
@@ -601,6 +617,14 @@ export default function NGODashboardPage() {
                 </Card>
               </div>
             )}
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="border-red-200 text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </div>
 

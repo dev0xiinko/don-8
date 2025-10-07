@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "sanitize-ngo-apps": "node scripts/sanitize-ngo-apps.js",
     "clear-campaigns": "./scripts/campaign-manager.sh clear",
     "backup-data": "./scripts/campaign-manager.sh backup",
     "restore-data": "./scripts/campaign-manager.sh restore",
@@ -71,6 +72,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.18.8",
+    "@types/nodemailer": "^7.0.2",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8.5",

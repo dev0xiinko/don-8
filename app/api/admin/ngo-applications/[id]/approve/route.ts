@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { sendApplicationStatusEmail } from '@/lib/mailer';
 
 interface RouteParams {
   params: { id: string };
@@ -30,7 +31,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     // Update application status
     const normalizedEmail = (applications[applicationIndex].email || '').toString().trim().toLowerCase();
-    const finalPassword = applications[applicationIndex].registrationPassword || `${applications[applicationIndex].organizationName.toLowerCase().replace(/\s+/g, '')}123`;
+  const generatedFallback = `${applications[applicationIndex].organizationName.toLowerCase().replace(/\s+/g, '')}123`;
+  const finalPassword = applications[applicationIndex].registrationPassword || generatedFallback;
 
     applications[applicationIndex] = {
       ...applications[applicationIndex],
@@ -56,6 +58,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Write back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
+
+    // Best-effort: notify applicant via email
+    try {
+      const app = applications[applicationIndex]
+      if (app?.email) {
+        const includeTemp = !applications[applicationIndex].registrationPassword
+        await sendApplicationStatusEmail(app.email, 'approved', app.organizationName || app.name, reviewNotes, includeTemp ? finalPassword : undefined)
+      }
+    } catch (e) {
+      console.warn('Failed to send approval email:', e)
+    }
     
     return NextResponse.json({
       message: 'Application approved successfully',
