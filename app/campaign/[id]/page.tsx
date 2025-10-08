@@ -30,6 +30,8 @@ interface DonationHistory {
   gasUsed?: string
   explorerUrl: string
   walletAddress?: string
+  type?: 'donation' | 'withdrawal'
+  destination?: string
 }
 
 interface NetworkInfo {
@@ -151,15 +153,32 @@ export default function DonatePage() {
 
 
 
-  // Process donation history from comprehensive campaign data
-  const loadDonationHistoryFromCampaignData = (campaignData: any) => {
+  // Process donation history and withdrawal history from comprehensive campaign data
+  const loadDonationHistoryFromCampaignData = async (campaignData: any) => {
     try {
-      console.log('📊 Processing donation history from campaign data...')
+      console.log('📊 Processing donation and withdrawal history from campaign data...')
       
       const allDonations = campaignData.donations || []
       console.log('📦 Campaign contains', allDonations.length, 'total donations')
       
-      // Filter for current wallet if connected, otherwise show all
+      // Fetch NGO withdrawals for this campaign's NGO
+      let ngoWithdrawals: any[] = []
+      try {
+        const withdrawalResponse = await fetch(`/api/ngo/withdrawals?ngoId=${campaign.ngoId}`)
+        const withdrawalResult = await withdrawalResponse.json()
+        if (withdrawalResult.success) {
+          ngoWithdrawals = withdrawalResult.withdrawals || []
+          console.log('💰 Found', ngoWithdrawals.length, 'NGO withdrawals')
+          // Debug: log withdrawal statuses to help identify mapping issues
+          ngoWithdrawals.forEach((w: any, i: number) => {
+            console.log(`Withdrawal ${i}: status="${w.status}", txHash="${w.txHash}"`)
+          })
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not fetch NGO withdrawals:', error)
+      }
+      
+      // Filter donations for current wallet if connected, otherwise show all
       let filteredDonations = allDonations
       if (walletConnected && userAddress) {
         filteredDonations = allDonations.filter((d: any) => 
@@ -170,8 +189,8 @@ export default function DonatePage() {
         console.log('👁️ Showing all', allDonations.length, 'donations (wallet not connected)')
       }
       
-      // Convert to DonationHistory format for UI
-      const historyData: DonationHistory[] = filteredDonations.map((d: any) => ({
+      // Convert donations to DonationHistory format
+      const donationHistoryData: DonationHistory[] = filteredDonations.map((d: any) => ({
         id: d.id,
         txHash: d.txHash,
         amount: d.amount,
@@ -181,16 +200,55 @@ export default function DonatePage() {
         blockNumber: d.blockNumber,
         gasUsed: d.gasUsed,
         explorerUrl: d.explorerUrl,
-        walletAddress: d.donorAddress
+        walletAddress: d.donorAddress,
+        type: 'donation' as const
       }))
       
-      // Sort by timestamp (newest first)
-      historyData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      setDonationHistory(historyData)
+      // Convert withdrawals to DonationHistory format (show all withdrawals for transparency)
+      const withdrawalHistoryData: DonationHistory[] = ngoWithdrawals.map((w: any) => {
+        // Normalize withdrawal status - withdrawals are typically completed if they have a txHash
+        let normalizedStatus: 'pending' | 'confirmed' | 'failed' = 'confirmed'
+        if (w.status) {
+          const statusLower = w.status.toLowerCase()
+          if (statusLower === 'pending' || statusLower === 'processing') {
+            normalizedStatus = 'pending'
+          } else if (statusLower === 'failed' || statusLower === 'error' || statusLower === 'rejected') {
+            normalizedStatus = 'failed'
+          } else if (statusLower === 'completed' || statusLower === 'confirmed' || statusLower === 'success' || statusLower === 'successful') {
+            normalizedStatus = 'confirmed'
+          } else if (w.txHash) {
+            // If we have a txHash, assume it's confirmed
+            normalizedStatus = 'confirmed'
+          }
+        } else if (w.txHash) {
+          // No explicit status but has txHash - assume confirmed
+          normalizedStatus = 'confirmed'
+        }
+
+        return {
+          id: `withdrawal_${w.id}`,
+          txHash: w.txHash,
+          amount: w.amount,
+          currency: w.currency || 'SONIC',
+          timestamp: new Date(w.date || w.timestamp || w.createdAt),
+          status: normalizedStatus,
+          blockNumber: w.blockNumber,
+          gasUsed: w.gasUsed,
+          explorerUrl: w.explorerUrl || `https://blaze.soniclabs.com/tx/${w.txHash}`,
+          walletAddress: campaign.walletAddress, // NGO wallet address
+          destination: w.destination,
+          type: 'withdrawal' as const
+        }
+      })
       
-      console.log('✅ Processed donation history:', historyData.length, 'donations')
+      // Combine and sort by timestamp (newest first)
+      const combinedHistory = [...donationHistoryData, ...withdrawalHistoryData]
+      combinedHistory.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      setDonationHistory(combinedHistory)
+      
+      console.log('✅ Processed transaction history:', donationHistoryData.length, 'donations +', withdrawalHistoryData.length, 'withdrawals')
     } catch (error) {
-      console.error('❌ Error processing donation history:', error)
+      console.error('❌ Error processing transaction history:', error)
       setDonationHistory([])
     }
   }
@@ -783,12 +841,12 @@ export default function DonatePage() {
               }}
             />
 
-            {/* Personal Donation History - Always Show */}
+            {/* Campaign Transaction History - Donations & Withdrawals */}
             <Card>
               <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle className="flex items-center">
                   <History className="w-5 h-5 mr-2" />
-                  Your Personal Transactions ({donationHistory.length})
+                  Campaign Financial History ({donationHistory.length})
                 </CardTitle>
                 <Button 
                   size="sm" 
@@ -807,8 +865,8 @@ export default function DonatePage() {
                 {donationHistory.length === 0 ? (
                   <div className="text-center py-6 text-gray-500">
                     <Heart className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm font-medium">No personal donations yet</p>
-                    <p className="text-xs mt-1">Your transaction history will appear here</p>
+                    <p className="text-sm font-medium">No financial activity yet</p>
+                    <p className="text-xs mt-1">Donations and NGO withdrawals will appear here for full transparency</p>
                   </div>
                 ) : (
                   <>
@@ -817,7 +875,7 @@ export default function DonatePage() {
                     <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
                       <div className="flex items-center">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        {walletConnected ? 'Personal wallet history' : 'All local transactions'} • Real-time status updates
+                        Complete financial transparency • Donations & NGO withdrawals
                       </div>
                       <div className="text-xs text-gray-400">
                         Last updated: {new Date().toLocaleTimeString()}
@@ -827,8 +885,9 @@ export default function DonatePage() {
                       <table className="w-full text-sm">
                         <thead className="border-b bg-gray-50">
                           <tr>
+                            <th className="text-left p-3 font-semibold">Type</th>
                             <th className="text-left p-3 font-semibold">Amount</th>
-                            <th className="text-left p-3 font-semibold">Wallet</th>
+                            <th className="text-left p-3 font-semibold">Wallet/Destination</th>
                             <th className="text-left p-3 font-semibold">Status</th>
                             <th className="text-left p-3 font-semibold">Date & Time</th>
                             <th className="text-left p-3 font-semibold">Transaction</th>
@@ -836,20 +895,46 @@ export default function DonatePage() {
                         </thead>
                         <tbody>
                           {donationHistory.map(d => (
-                            <tr key={d.id} className="border-b hover:bg-gray-50 transition-colors">
+                            <tr key={d.id} className={`border-b hover:bg-gray-50 transition-colors ${d.type === 'withdrawal' ? 'bg-orange-50' : ''}`}>
                               <td className="p-3">
                                 <div className="flex items-center space-x-2">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  {d.type === 'withdrawal' ? (
+                                    <>
+                                      <div className="w-4 h-4 text-orange-600">💸</div>
+                                      <Badge variant="outline" className="text-orange-700 border-orange-300">
+                                        NGO Withdrawal
+                                      </Badge>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Heart className="w-4 h-4 text-green-600" />
+                                      <Badge variant="outline" className="text-green-700 border-green-300">
+                                        Donation
+                                      </Badge>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center space-x-2">
+                                  <DollarSign className={`w-4 h-4 ${d.type === 'withdrawal' ? 'text-orange-600' : 'text-green-600'}`} />
                                   <span className="font-bold">{d.amount} {d.currency}</span>
                                 </div>
                               </td>
                               <td className="p-3">
                                 <div className="font-mono text-xs text-gray-600">
-                                  {d.walletAddress ? (
+                                  {d.type === 'withdrawal' && d.destination ? (
                                     <>
+                                      <div className="text-xs text-gray-500 mb-1">To:</div>
+                                      <div>{d.destination.slice(0, 6)}...{d.destination.slice(-4)}</div>
+                                      <Badge variant="secondary" className="text-xs mt-1">NGO Fund</Badge>
+                                    </>
+                                  ) : d.walletAddress ? (
+                                    <>
+                                      <div className="text-xs text-gray-500 mb-1">From:</div>
                                       <div>{d.walletAddress.slice(0, 6)}...{d.walletAddress.slice(-4)}</div>
-                                      {walletConnected && userAddress.toLowerCase() === d.walletAddress && (
-                                        <Badge variant="secondary" className="text-xs mt-1">Current</Badge>
+                                      {walletConnected && userAddress.toLowerCase() === d.walletAddress.toLowerCase() && (
+                                        <Badge variant="secondary" className="text-xs mt-1">Your Wallet</Badge>
                                       )}
                                     </>
                                   ) : (
