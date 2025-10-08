@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import fs from 'fs';
 import path from 'path';
+import { sendVerificationEmail } from '@/lib/mailer';
+import { backupNgoApplication } from '@/lib/backup-db';
 
 export async function POST(req: Request) {
   // API endpoint for NGO application registration
@@ -30,6 +32,11 @@ export async function POST(req: Request) {
     const newId = maxId + 1;
 
     // Create new application object
+    // Generate initial email verification fields
+    const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCode = generateCode();
+    const verificationExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
+
     const newApplication = {
       id: newId,
       organizationName: body.name, // Form sends 'name' not 'organizationName'
@@ -56,7 +63,11 @@ export async function POST(req: Request) {
       reviewedBy: null,
       // Store the actual password provided during registration
       registrationPassword: body.password,
-      credentials: null
+      credentials: null,
+      // Email verification
+      emailVerified: false,
+      verificationCode,
+      verificationExpiresAt
     };
 
     // Add to applications array
@@ -65,18 +76,22 @@ export async function POST(req: Request) {
 
     // Save back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
+
+    // Fire-and-forget: send verification email in background so response is not blocked
+    sendVerificationEmail(body.email, verificationCode)
+      .then(() => console.info('Verification email sent on registration'))
+      .catch((e) => console.warn('Verification email failed to send on registration. User can resend.', e))
     console.log(`Saved ${applications.length} applications to file`);
 
-    const result = {
-      success: true,
-      applicationId: newId,
-      message: "Application submitted successfully"
-    };
+    // Fire-and-forget: backup to external DB or webhook if configured
+    backupNgoApplication(newApplication)
+      .then(() => console.info('Backup of NGO application completed (if configured)'))
+      .catch((e) => console.warn('Backup of NGO application failed', e))
 
     return NextResponse.json({
       success: true,
-      message: "NGO application submitted successfully",
-      applicationId: result.applicationId,
+      message: "NGO application submitted successfully. Verification code sent to email.",
+      applicationId: newId
     });
 
   } catch (error: any) {

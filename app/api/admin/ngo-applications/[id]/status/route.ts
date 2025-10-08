@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from 'fs';
 import path from 'path';
+import { sendApplicationStatusEmail } from '@/lib/mailer';
 
 export async function PATCH(
   req: Request,
@@ -38,34 +39,53 @@ export async function PATCH(
     }
 
     // Update application status
-    applications[applicationIndex].status = status;
-    applications[applicationIndex].reviewedAt = new Date().toISOString();
-    applications[applicationIndex].reviewedBy = "admin@don8.com";
+    const app = applications[applicationIndex];
+    app.status = status;
+    app.reviewedAt = new Date().toISOString();
+    app.reviewedBy = "admin@don8.com";
     if (reviewNotes) {
-      applications[applicationIndex].reviewNotes = reviewNotes;
+      app.reviewNotes = reviewNotes;
     }
 
-    // Generate credentials for approved applications
+    // Generate credentials for approved applications (prefer registrationPassword if present)
+    let tempPassword: string | undefined
     if (status === 'approved') {
-      const orgName = applications[applicationIndex].organizationName;
-      const email = applications[applicationIndex].email;
-      
-      // Generate simple credentials
-      const credentials = {
-        email: email,
-        password: `${orgName.replace(/\s+/g, '')}2024`.substring(0, 16)
+      const orgName: string = app.organizationName || app.name || 'NGO';
+      const normalizedEmail: string = (app.email || '').toString().trim().toLowerCase();
+      const fallbackPassword = `${orgName.replace(/\s+/g, '')}2024`.substring(0, 16);
+      const finalPassword = app.registrationPassword || fallbackPassword;
+
+      app.credentials = {
+        email: normalizedEmail,
+        password: finalPassword,
       };
-      
-      applications[applicationIndex].credentials = credentials;
-      console.log(`Generated credentials for ${orgName}:`, credentials);
+      console.log(`Credentials set for ${orgName} (${normalizedEmail}).`);
+      if (!app.registrationPassword) tempPassword = finalPassword
     } else {
       // Remove credentials if not approved
-      applications[applicationIndex].credentials = null;
+      app.credentials = null;
     }
 
     // Save back to file
     fs.writeFileSync(filePath, JSON.stringify(applications, null, 2));
-    console.log(`Successfully updated application ${applicationId}`);
+    console.log(`Successfully updated application ${applicationId} -> ${status}`);
+
+    // Best-effort: notify applicant via email on approved/rejected
+    try {
+      const target = applications[applicationIndex];
+      if (target?.email && (status === 'approved' || status === 'rejected')) {
+        await sendApplicationStatusEmail(
+          target.email,
+          status,
+          target.organizationName || target.name,
+          reviewNotes,
+          status === 'approved' ? tempPassword : undefined
+        );
+        console.log(`Status email sent to ${target.email} for ${status}.`);
+      }
+    } catch (e) {
+      console.warn('Failed to send status email:', e);
+    }
 
     return NextResponse.json({
       success: true,

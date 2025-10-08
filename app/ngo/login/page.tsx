@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Building2, Lock, Mail, Eye, EyeOff, AlertCircle, CheckCircle2, Heart, Shield, Users, TrendingUp
 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function NGOLoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" })
@@ -18,6 +19,13 @@ export default function NGOLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [resetStep, setResetStep] = useState<'request'|'verify'>('request')
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [resetNewPass, setResetNewPass] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
   // Live homepage-like stats
   const [totalDonated, setTotalDonated] = useState<number>(0)
   const [activeCampaigns, setActiveCampaigns] = useState<number>(0)
@@ -242,7 +250,7 @@ export default function NGOLoginPage() {
                     <input type="checkbox" className="rounded" />
                     <span className="text-gray-600">Remember me</span>
                   </label>
-                  <button className="text-blue-600 hover:text-blue-700 font-medium">
+                  <button className="text-blue-600 hover:text-blue-700 font-medium" onClick={() => { setShowForgot(true); setResetStep('request'); setResetEmail(formData.email || ''); setResetMsg('') }}>
                     Forgot password?
                   </button>
                 </div>
@@ -304,8 +312,77 @@ export default function NGOLoginPage() {
             <Shield className="w-3 h-3" />
             <span>Secured with blockchain verification</span>
           </div>
+          {/* Forgot Password Modal */}
+          <ForgotPasswordModal
+            open={showForgot}
+            onOpenChange={setShowForgot}
+            email={formData.email}
+          />
         </div>
       </div>
     </div>
+  )
+}
+
+function ForgotPasswordModal({ open, onOpenChange, email: initialEmail }: { open: boolean, onOpenChange: (v: boolean) => void, email?: string }) {
+  const [step, setStep] = useState<'request'|'verify'>('request')
+  const [email, setEmail] = useState(initialEmail || '')
+  const [code, setCode] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => { setEmail(initialEmail || '') }, [initialEmail])
+
+  const request = async () => {
+    setMsg(''); setLoading(true)
+    try {
+      await fetch('/api/ngo/password/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+      setMsg('If this email exists and is approved, a reset code was sent.');
+      setStep('verify')
+    } catch (e) {
+      setMsg('Failed to request reset. Try again.')
+    } finally { setLoading(false) }
+  }
+
+  const reset = async () => {
+    setMsg(''); setLoading(true)
+    try {
+      const res = await fetch('/api/ngo/password/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code, newPassword: newPass }) })
+      const data = await res.json()
+      if (data.success) { setMsg('Password updated. You can now sign in.'); onOpenChange(false) }
+      else setMsg(data.message || 'Invalid code')
+    } catch (e) { setMsg('Failed to reset. Try again.') } finally { setLoading(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{step === 'request' ? 'Reset your password' : 'Enter reset code'}</DialogTitle>
+        </DialogHeader>
+        {step === 'request' ? (
+          <div className="space-y-4">
+            <Label htmlFor="fp_email">Email</Label>
+            <Input id="fp_email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.org" />
+            <Button onClick={request} disabled={!email || loading} className="w-full">
+              {loading ? 'Sending…' : 'Send reset code'}
+            </Button>
+            {msg && <div className="text-sm text-gray-600">{msg}</div>}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Label htmlFor="fp_code">Verification Code</Label>
+            <Input id="fp_code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code" />
+            <Label htmlFor="fp_new">New Password</Label>
+            <Input id="fp_new" type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="Enter new password" />
+            <Button onClick={reset} disabled={!code || !newPass || loading} className="w-full">
+              {loading ? 'Updating…' : 'Update password'}
+            </Button>
+            {msg && <div className="text-sm text-gray-600">{msg}</div>}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -44,7 +44,9 @@ export async function POST(req: Request) {
       const creds = app.credentials || {};
       const storedEmail = (creds.email || app.email || '').toString().trim().toLowerCase();
       const storedPassword = creds.password;
-      return storedEmail === inputEmail && storedPassword === inputPassword;
+      const okCreds = storedEmail === inputEmail && storedPassword === inputPassword;
+      const verified = app.emailVerified === true;
+      return okCreds && verified;
     });
 
     // Fallback: for approved NGOs missing credentials block (older records), allow login using registrationPassword
@@ -53,7 +55,9 @@ export async function POST(req: Request) {
         if (app.status !== 'approved') return false;
         const storedEmail = (app.email || '').toString().trim().toLowerCase();
         const storedPassword = app.registrationPassword; // plaintext stored during registration
-        return storedEmail === inputEmail && storedPassword === inputPassword;
+        const okCreds = storedEmail === inputEmail && storedPassword === inputPassword;
+        const verified = app.emailVerified === true;
+        return okCreds && verified;
       });
     }
 
@@ -61,7 +65,7 @@ export async function POST(req: Request) {
 
     if (!approvedNgo) {
       return NextResponse.json(
-        { success: false, message: "Invalid credentials or organization not approved." },
+        { success: false, message: "Invalid credentials or email not verified or organization not approved." },
         { status: 401 }
       );
     }

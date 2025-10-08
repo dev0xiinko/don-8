@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       message: body.message || "",
       timestamp: new Date().toISOString(),
       status: "completed",
-      currency: "ETH"
+      currency: "SONIC"
     };
 
     // Add to donations array

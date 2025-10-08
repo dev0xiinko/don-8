@@ -23,7 +23,7 @@ A comprehensive script for managing campaign data with multiple operations:
 ./scripts/campaign-manager.sh [command]
 
 # Or use npm scripts (recommended)
-npm run clear-campaigns    # Clear all data
+    # Clear all data
 npm run backup-data       # Create backup
 npm run restore-data      # Restore from backup  
 npm run data-status       # Show status
